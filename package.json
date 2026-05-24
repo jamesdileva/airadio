@@ -1,0 +1,17 @@
+{
+  "name": "ai-radio-network",
+  "version": "0.1.0",
+  "description": "Autonomous AI radio station for local streaming",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/desktop",
+    "build": "npm run build --workspace=apps/desktop"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

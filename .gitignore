@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.db
+data/audio-output/
+data/logs/
+.env
+.DS_Store
