@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import path from 'path'
 import { app } from 'electron'
+import { ScheduleSegment, DailySchedule } from '../shared/types'
 
 let db: Database.Database
 
@@ -69,4 +70,35 @@ function createTables(db: Database.Database): void {
 export function getDatabase(): Database.Database {
   if (!db) throw new Error('Database not initialized')
   return db
+}
+
+
+
+export function saveSchedule(schedule: DailySchedule): void {
+  const db = getDatabase()
+
+  // Clear existing schedule for this date
+  db.prepare('DELETE FROM schedule WHERE date = ?').run(schedule.date)
+
+  const insert = db.prepare(`
+    INSERT INTO schedule (date, segment_order, category, topic, duration_seconds, status)
+    VALUES (@date, @segmentOrder, @category, @topic, @durationSeconds, @status)
+  `)
+
+  const insertMany = db.transaction((segments: ScheduleSegment[]) => {
+    for (const seg of segments) {
+      insert.run(seg)
+    }
+  })
+
+  insertMany(schedule.segments)
+}
+
+export function loadTodaySchedule(): ScheduleSegment[] {
+  const db = getDatabase()
+  const today = new Date().toISOString().split('T')[0]
+
+  return db.prepare(`
+    SELECT * FROM schedule WHERE date = ? ORDER BY segment_order
+  `).all(today) as ScheduleSegment[]
 }

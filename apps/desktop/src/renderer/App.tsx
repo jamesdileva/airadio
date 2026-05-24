@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { SchedulePanel } from './components/SchedulePanel'
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<'idle' | 'running' | 'stopped'>('idle')
@@ -35,9 +36,7 @@ const App: React.FC = () => {
 
         <section className="dashboard-card">
           <h2>Today's Schedule</h2>
-          <p className="placeholder-text">
-            Schedule will appear here after Sprint 1
-          </p>
+          <SchedulePanel />
         </section>
 
         <section className="dashboard-card">

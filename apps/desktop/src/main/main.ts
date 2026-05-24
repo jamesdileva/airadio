@@ -1,5 +1,28 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
+import { initDatabase, saveSchedule, loadTodaySchedule } from './database'
+import { generateSchedule } from './scheduler'
 import path from 'path'
+
+// ── IPC Handlers ──────────────────────────────────────────────────
+ipcMain.handle('schedule:generate', (_event, categories) => {
+  try {
+    const schedule = generateSchedule(categories)
+    saveSchedule(schedule)
+    return schedule
+  } catch (err) {
+    console.error('Schedule generation error:', err)
+    throw err
+  }
+})
+
+ipcMain.handle('schedule:load', () => {
+  try {
+    return loadTodaySchedule()
+  } catch (err) {
+    console.error('Schedule load error:', err)
+    throw err
+  }
+})
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -25,6 +48,13 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  try {
+    initDatabase()
+    console.log('Database ready')
+  } catch (err) {
+    console.error('Database init failed:', err)
+  }
+
   createWindow()
 
   app.on('activate', () => {
