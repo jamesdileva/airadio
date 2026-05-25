@@ -2,6 +2,14 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import { initDatabase, saveSchedule, loadTodaySchedule } from './database'
 import { generateSchedule } from './scheduler'
 import path from 'path'
+import {
+  fetchDataForSchedule,
+  fetchFinanceData,
+  FetchedArticle
+} from './dataFetcher'
+import { saveArticles, saveFinanceData, loadArticlesForCategory, loadLatestFinanceData } from './database'
+import { Category } from '../shared/types'
+
 
 // ── IPC Handlers ──────────────────────────────────────────────────
 ipcMain.handle('schedule:generate', (_event, categories) => {
@@ -22,6 +30,44 @@ ipcMain.handle('schedule:load', () => {
     console.error('Schedule load error:', err)
     throw err
   }
+})
+
+ipcMain.handle('data:fetchForSchedule', async (_event, categories: Category[]) => {
+  try {
+    const dataMap = await fetchDataForSchedule(categories)
+    // Save each category's articles to SQLite
+    for (const [, articles] of dataMap) {
+      if (articles.length > 0) saveArticles(articles)
+    }
+    // Convert Map to plain object for IPC transfer
+    const result: Record<string, FetchedArticle[]> = {}
+    for (const [cat, articles] of dataMap) {
+      result[cat] = articles
+    }
+    return result
+  } catch (err) {
+    console.error('Data fetch error:', err)
+    throw err
+  }
+})
+
+ipcMain.handle('data:fetchFinance', async () => {
+  try {
+    const data = await fetchFinanceData()
+    if (data.length > 0) saveFinanceData(data)
+    return data
+  } catch (err) {
+    console.error('Finance fetch error:', err)
+    throw err
+  }
+})
+
+ipcMain.handle('data:loadArticles', (_event, category: string) => {
+  return loadArticlesForCategory(category)
+})
+
+ipcMain.handle('data:loadFinance', () => {
+  return loadLatestFinanceData()
 })
 
 function createWindow(): void {

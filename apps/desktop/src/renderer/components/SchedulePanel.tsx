@@ -14,16 +14,25 @@ function formatDuration(seconds: number): string {
   if (h > 0) return `${h}h ${m}m`
   return `${m}m`
 }
-
-export const SchedulePanel: React.FC = () => {
+// Update the props interface
+interface SchedulePanelProps {
+  onCategoriesChange?: (categories: Category[]) => void
+}
+export const SchedulePanel: React.FC<SchedulePanelProps> = ({ onCategoriesChange }) => {
   const [selected, setSelected] = useState<Set<Category>>(new Set(['tech', 'news']))
   const [schedule, setSchedule] = useState<ScheduleSegment[]>([])
   const [loading, setLoading] = useState(false)
-
+  // Notify parent of initial selection on mount
+  React.useEffect(() => {
+    onCategoriesChange?.(Array.from(selected))
+  }, [])
+  // Update toggleCategory to notify parent
   const toggleCategory = (cat: Category) => {
     setSelected(prev => {
       const next = new Set(prev)
       next.has(cat) ? next.delete(cat) : next.add(cat)
+      // Notify App.tsx of the change
+      onCategoriesChange?.(Array.from(next))
       return next
     })
   }
@@ -42,6 +51,8 @@ export const SchedulePanel: React.FC = () => {
       setLoading(false)
     }
   }
+
+  
 
   return (
     <div className="schedule-panel">

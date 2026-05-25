@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import { app } from 'electron'
 import { ScheduleSegment, DailySchedule } from '../shared/types'
+import { FetchedArticle, FinanceData } from './dataFetcher'
 
 let db: Database.Database
 
@@ -64,6 +65,25 @@ function createTables(db: Database.Database): void {
       viewer_count_avg INTEGER DEFAULT 0,
       chat_activity_count INTEGER DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS fetched_articles (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      category     TEXT NOT NULL,
+      title        TEXT NOT NULL,
+      summary      TEXT NOT NULL,
+      source       TEXT NOT NULL,
+      url          TEXT NOT NULL,
+      fetched_at   TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS finance_data (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      symbol         TEXT NOT NULL,
+      price          REAL NOT NULL,
+      change         REAL NOT NULL,
+      change_percent REAL NOT NULL,
+      fetched_at     TEXT NOT NULL
+    );
+
   `)
 }
 
@@ -101,4 +121,53 @@ export function loadTodaySchedule(): ScheduleSegment[] {
   return db.prepare(`
     SELECT * FROM schedule WHERE date = ? ORDER BY segment_order
   `).all(today) as ScheduleSegment[]
+}
+
+export function saveArticles(articles: FetchedArticle[]): void {
+  const db = getDatabase()
+  const insert = db.prepare(`
+    INSERT INTO fetched_articles
+      (category, title, summary, source, url, fetched_at)
+    VALUES
+      (@category, @title, @summary, @source, @url, @fetchedAt)
+  `)
+  const insertMany = db.transaction((items: FetchedArticle[]) => {
+    for (const item of items) insert.run(item)
+  })
+  insertMany(articles)
+}
+
+export function saveFinanceData(data: FinanceData[]): void {
+  const db = getDatabase()
+  const insert = db.prepare(`
+    INSERT INTO finance_data
+      (symbol, price, change, change_percent, fetched_at)
+    VALUES
+      (@symbol, @price, @change, @changePercent, @fetchedAt)
+  `)
+  const insertMany = db.transaction((items: FinanceData[]) => {
+    for (const item of items) insert.run(item)
+  })
+  insertMany(data)
+}
+
+export function loadArticlesForCategory(category: string): FetchedArticle[] {
+  const db = getDatabase()
+  const today = new Date().toISOString().split('T')[0]
+  return db.prepare(`
+    SELECT * FROM fetched_articles
+    WHERE category = ?
+    AND date(fetched_at) = ?
+    ORDER BY id DESC
+    LIMIT 10
+  `).all(category, today) as FetchedArticle[]
+}
+
+export function loadLatestFinanceData(): FinanceData[] {
+  const db = getDatabase()
+  return db.prepare(`
+    SELECT * FROM finance_data
+    ORDER BY fetched_at DESC
+    LIMIT 12
+  `).all() as FinanceData[]
 }

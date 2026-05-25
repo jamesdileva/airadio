@@ -3,9 +3,17 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  version: process.versions.electron,
+  version:          process.versions.electron,
   generateSchedule: (categories: string[]) =>
     ipcRenderer.invoke('schedule:generate', categories),
-  loadSchedule: () =>
+  loadSchedule:     () =>
     ipcRenderer.invoke('schedule:load'),
+  fetchData:        (categories: string[]) =>
+    ipcRenderer.invoke('data:fetchForSchedule', categories),
+  fetchFinance:     () =>
+    ipcRenderer.invoke('data:fetchFinance'),
+  loadArticles:     (category: string) =>
+    ipcRenderer.invoke('data:loadArticles', category),
+  loadFinance:      () =>
+    ipcRenderer.invoke('data:loadFinance'),
 })
