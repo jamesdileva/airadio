@@ -2,6 +2,7 @@
 // We will expose safe APIs to the renderer here in later sprints
 import { contextBridge, ipcRenderer } from 'electron'
 
+
 contextBridge.exposeInMainWorld('electronAPI', {
   version:            process.versions.electron,
   generateSchedule:   (categories: string[]) =>
@@ -32,6 +33,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     subSegments: { id: number; script: string }[]
     voice?:      string
   }) => ipcRenderer.invoke('tts:generateBatch', payload),
-  getAudioData: (filePath: string) =>
+  getAudioPath:       (subSegmentId: number) =>
+    ipcRenderer.invoke('tts:getPath', subSegmentId),
+  getAudioData:       (filePath: string) =>
     ipcRenderer.invoke('tts:getAudioData', filePath),
+  mixAudio:           (payload: {
+    subSegmentId: number
+    audioPath:    string
+    musicPath?:   string
+  }) => ipcRenderer.invoke('mixer:mix', payload),
+  mixAllAudio:        (payload: {
+    subSegments: { id: number; audioPath: string }[]
+  }) => ipcRenderer.invoke('mixer:mixAll', payload),
+  getTracks:          () =>
+    ipcRenderer.invoke('mixer:getTracks'),
+  getMixedAudioData:  (filePath: string) =>
+    ipcRenderer.invoke('mixer:getAudioData', filePath),
 })

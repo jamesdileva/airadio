@@ -310,3 +310,31 @@ export function loadSubSegmentsWithAudio(scheduleId: number): any[] {
     ORDER BY article_index ASC
   `).all(scheduleId)
 }
+
+export function updateSubSegmentMixedAudio(
+  subSegmentId: number,
+  mixedPath:    string
+): void {
+  const db = getDatabase()
+  try {
+    db.prepare(
+      'ALTER TABLE sub_segments ADD COLUMN mixed_audio_path TEXT'
+    ).run()
+  } catch { /* column already exists */ }
+
+  db.prepare(`
+    UPDATE sub_segments
+    SET mixed_audio_path = ?
+    WHERE id = ?
+  `).run(mixedPath, subSegmentId)
+}
+
+export function loadSubSegmentsWithPaths(scheduleId: number): any[] {
+  const db = getDatabase()
+  return db.prepare(`
+    SELECT * FROM sub_segments
+    WHERE schedule_id = ?
+    ORDER BY article_index ASC
+  `).all(scheduleId)
+}
+

@@ -46,6 +46,8 @@ import {
   loadSubSegments,
   clearSubSegments,
   updateSubSegmentAudio,
+  updateSubSegmentMixedAudio,
+  
 } from './database'
 
 import {
@@ -55,6 +57,13 @@ import {
   getAudioPath,
 } from './voiceEngine'
 
+import {
+  mixVoiceWithMusic,
+  mixAllSubSegments,
+  getAvailableTracks,
+  mixedAudioExists,
+  getMixedAudioPath,
+} from './audioMixer'
 
 // ── IPC Handlers ──────────────────────────────────────────────────
 
@@ -246,7 +255,69 @@ ipcMain.handle('tts:getAudioData', (_event, filePath: string) => {
   }
 })
 
+ipcMain.handle('mixer:mix', async (_event, payload: {
+  subSegmentId: number
+  audioPath:    string
+  musicPath?:   string
+}) => {
+  console.log(`Mixing audio for sub-segment ${payload.subSegmentId}`)
 
+  // Return cached mix if it exists
+  if (mixedAudioExists(payload.subSegmentId)) {
+    console.log('Using cached mix')
+    return {
+      success:    true,
+      outputPath: getMixedAudioPath(payload.subSegmentId),
+      cached:     true,
+    }
+  }
+
+  const result = await mixVoiceWithMusic(
+    payload.audioPath,
+    payload.subSegmentId,
+    payload.musicPath
+  )
+
+  if (result.success && result.outputPath) {
+    updateSubSegmentMixedAudio(payload.subSegmentId, result.outputPath)
+  }
+
+  return result
+})
+
+ipcMain.handle('mixer:mixAll', async (_event, payload: {
+  subSegments: { id: number; audioPath: string }[]
+}) => {
+  console.log(`Mixing ${payload.subSegments.length} sub-segments`)
+
+  const toMix = payload.subSegments.filter(s => !mixedAudioExists(s.id))
+  console.log(`${payload.subSegments.length - toMix.length} cached, ${toMix.length} to mix`)
+
+  const results = await mixAllSubSegments(
+    toMix,
+    (current, total) => console.log(`Mix progress: ${current}/${total}`)
+  )
+
+  for (const r of results) {
+    updateSubSegmentMixedAudio(r.id, r.mixedPath)
+  }
+
+  return results
+})
+
+ipcMain.handle('mixer:getTracks', () => {
+  return getAvailableTracks()
+})
+
+ipcMain.handle('mixer:getAudioData', (_event, filePath: string) => {
+  try {
+    const data = fs.readFileSync(filePath)
+    return data.toString('base64')
+  } catch (err: any) {
+    console.error('Mixed audio read failed:', err.message)
+    return null
+  }
+})
 
 
 // ── Window ────────────────────────────────────────────────────────
