@@ -1,4 +1,18 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, net } from 'electron'
+import * as fs from 'fs'
+// Must be called before app is ready
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme:     'radio',
+    privileges: {
+      secure:           true,
+      standard:         true,
+      supportFetchAPI:  true,
+      stream:           true,
+    }
+  }
+])
+
 import path from 'path'
 import { Category } from '../shared/types'
 
@@ -31,7 +45,16 @@ import {
   saveSubSegments,
   loadSubSegments,
   clearSubSegments,
+  updateSubSegmentAudio,
 } from './database'
+
+import {
+  generateAudio,
+  generateAudioForSegments,
+  audioExists,
+  getAudioPath,
+} from './voiceEngine'
+
 
 // ── IPC Handlers ──────────────────────────────────────────────────
 
@@ -138,6 +161,94 @@ ipcMain.handle('script:loadSubSegments', (_event, scheduleId: number) => {
   return loadSubSegments(scheduleId)
 })
 
+ipcMain.handle('tts:generate', async (_event, payload: {
+  subSegmentId: number
+  script:       string
+  voice?:       string
+}) => {
+  console.log(`TTS: generating audio for sub-segment ${payload.subSegmentId}`)
+
+  // Return cached audio if it already exists
+  if (audioExists(payload.subSegmentId)) {
+    console.log('TTS: using cached audio')
+    return {
+      success:   true,
+      audioPath: getAudioPath(payload.subSegmentId),
+      cached:    true,
+    }
+  }
+
+  const result = await generateAudio(
+    payload.script,
+    payload.subSegmentId,
+    payload.voice ?? 'af_heart'
+  )
+
+  if (result.success && result.audioPath) {
+    updateSubSegmentAudio(
+      payload.subSegmentId,
+      result.audioPath,
+      result.durationSec ?? 0
+    )
+  }
+
+  return result
+})
+
+ipcMain.handle('tts:generateBatch', async (_event, payload: {
+  subSegments: { id: number; script: string }[]
+  voice?:      string
+}) => {
+  console.log(`TTS: batch generating ${payload.subSegments.length} audio files`)
+
+  // Filter out already generated segments
+  const toGenerate = payload.subSegments.filter(s => !audioExists(s.id))
+  const alreadyDone = payload.subSegments.filter(s => audioExists(s.id))
+
+  console.log(`TTS: ${alreadyDone.length} cached, ${toGenerate.length} to generate`)
+
+  const results = await generateAudioForSegments(
+    toGenerate,
+    payload.voice ?? 'af_heart',
+    (current, total) => {
+      console.log(`TTS progress: ${current}/${total}`)
+    }
+  )
+
+  // Save audio paths to database
+  for (const r of results) {
+    updateSubSegmentAudio(r.subSegmentId, r.audioPath, r.durationSec)
+  }
+
+  // Include already-cached results
+  const cachedResults = alreadyDone.map(s => ({
+    subSegmentId: s.id,
+    audioPath:    getAudioPath(s.id),
+    durationSec:  0,
+  }))
+
+  return [...cachedResults, ...results]
+})
+
+ipcMain.handle('tts:getPath', (_event, subSegmentId: number) => {
+  return audioExists(subSegmentId)
+    ? getAudioPath(subSegmentId)
+    : null
+})
+
+ipcMain.handle('tts:getAudioData', (_event, filePath: string) => {
+  try {
+    const data = fs.readFileSync(filePath)
+    return data.toString('base64')
+  } catch (err: any) {
+    console.error('Audio read failed:', err.message)
+    return null
+  }
+})
+
+
+
+
 // ── Window ────────────────────────────────────────────────────────
 
 function createWindow(): void {
@@ -163,6 +274,17 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // Register custom protocol to serve local audio files
+  protocol.handle('radio', (request) => {
+    // Extract path after radio:///
+    const url = request.url.slice('radio:///'.length)
+    const decoded = decodeURIComponent(url)
+    // Reconstruct proper Windows file path
+    const filePath = decoded.replace(/\//g, '\\')
+    console.log('Serving audio file:', filePath)
+    return net.fetch('file:///' + decoded)
+  })
+
   try {
     initDatabase()
     console.log('Database ready')

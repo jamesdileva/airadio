@@ -112,7 +112,7 @@ const TOPIC_QUERY_MAP: Record<string, string> = {
   'Deep dive: how everyday things work':  'engineering OR how it works OR manufacturing OR technology explained OR science',
   'Unsolved mysteries corner':            'unsolved mystery OR cold case OR unexplained OR paranormal OR investigation',
   'Internet culture and memes explained': 'internet culture OR meme OR social media trend OR viral OR online community',
-  'Obscure world records':                'world record OR Guinness OR record breaking OR achievement OR milestone',
+  'Obscure world records':                'bizarre world record OR strangest record OR unusual achievement OR Guinness weird OR oddest record',
   'Behind the scenes of major industries':'industry insider OR supply chain OR manufacturing OR business operations',
   'Future predictions and futurism':      'future technology OR prediction OR innovation OR emerging technology OR forecast',
 }

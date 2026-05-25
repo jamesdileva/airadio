@@ -349,6 +349,70 @@ body {
   text-align: right;
 }
 
+.subsegment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.audio-dot {
+  margin-left: 4px;
+  color: #44cc44;
+  font-size: 0.7rem;
+}
+
+.script-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #2a2a2a;
+}
+
+.audio-controls { display: flex; gap: 6px; }
+
+.btn-tts, .btn-play, .btn-audio-all {
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.btn-tts {
+  background: #1a2a2a;
+  color: #44aacc;
+  border: 1px solid #44aacc;
+}
+
+.btn-play {
+  background: #1a2a1a;
+  color: #44cc44;
+  border: 1px solid #44cc44;
+}
+
+.btn-audio-all {
+  background: #2a1a2a;
+  color: #cc44cc;
+  border: 1px solid #cc44cc;
+  white-space: nowrap;
+}
+
+.btn-tts:disabled, .btn-audio-all:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.audio-player {
+  width: 100%;
+  margin-top: 8px;
+  height: 32px;
+  accent-color: #ff4444;
+}
+
 .article-category { color: #ff4444; text-transform: capitalize; font-weight: 600; }
 .article-title    { color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .article-source   { color: #555; text-align: right; font-size: 0.7rem; }

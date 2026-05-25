@@ -15,6 +15,13 @@ export function initDatabase(): Database.Database {
   db.pragma('foreign_keys = ON')
 
   createTables(db)
+  // Add audio_file_path column if it doesn't exist (migration)
+  try {
+    db.prepare('ALTER TABLE sub_segments ADD COLUMN audio_file_path TEXT').run()
+    console.log('Migrated sub_segments table')
+  } catch {
+    // Column already exists, ignore
+  }
   console.log('Database initialized at:', dbPath)
   return db
 }
@@ -86,15 +93,16 @@ function createTables(db: Database.Database): void {
     );
 
     CREATE TABLE IF NOT EXISTS sub_segments (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT,
-      schedule_id   INTEGER REFERENCES schedule(id),
-      article_index INTEGER NOT NULL,
-      category      TEXT NOT NULL,
-      topic         TEXT NOT NULL,
-      headline      TEXT NOT NULL,
-      script        TEXT NOT NULL,
-      duration_sec  INTEGER NOT NULL,
-      generated_at  TEXT NOT NULL
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      schedule_id       INTEGER REFERENCES schedule(id),
+      article_index     INTEGER NOT NULL,
+      category          TEXT NOT NULL,
+      topic             TEXT NOT NULL,
+      headline          TEXT NOT NULL,
+      script            TEXT NOT NULL,
+      duration_sec      INTEGER NOT NULL,
+      generated_at      TEXT NOT NULL,
+      audio_file_path   TEXT
     );
 
 
@@ -279,4 +287,26 @@ export function loadSubSegments(scheduleId: number): SubSegment[] {
 export function clearSubSegments(scheduleId: number): void {
   const db = getDatabase()
   db.prepare('DELETE FROM sub_segments WHERE schedule_id = ?').run(scheduleId)
+}
+
+export function updateSubSegmentAudio(
+  subSegmentId: number,
+  audioPath:    string,
+  durationSec:  number
+): void {
+  const db = getDatabase()
+  db.prepare(`
+    UPDATE sub_segments
+    SET audio_file_path = ?, duration_sec = ?
+    WHERE id = ?
+  `).run(audioPath, durationSec, subSegmentId)
+}
+
+export function loadSubSegmentsWithAudio(scheduleId: number): any[] {
+  const db = getDatabase()
+  return db.prepare(`
+    SELECT * FROM sub_segments
+    WHERE schedule_id = ?
+    ORDER BY article_index ASC
+  `).all(scheduleId)
 }

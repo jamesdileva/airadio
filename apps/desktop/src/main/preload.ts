@@ -23,4 +23,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }) => ipcRenderer.invoke('script:generate', payload),
   loadSubSegments:    (scheduleId: number) =>
     ipcRenderer.invoke('script:loadSubSegments', scheduleId),
+  generateAudio:      (payload: {
+    subSegmentId: number
+    script:       string
+    voice?:       string
+  }) => ipcRenderer.invoke('tts:generate', payload),
+  generateAudioBatch: (payload: {
+    subSegments: { id: number; script: string }[]
+    voice?:      string
+  }) => ipcRenderer.invoke('tts:generateBatch', payload),
+  getAudioData: (filePath: string) =>
+    ipcRenderer.invoke('tts:getAudioData', filePath),
 })

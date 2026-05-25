@@ -5,3 +5,9 @@ data/audio-output/
 data/logs/
 .env
 .DS_Store
+kokoro-v1.0.onnx
+voices-v1.0.bin
+test_script.txt
+*.wav
+*.pt
+*.pth
