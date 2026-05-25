@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
 import { SchedulePanel } from './components/SchedulePanel'
-import { DataPanel } from './components/DataPanel'
-import { Category } from '../shared/types'
+import { DataPanel }     from './components/DataPanel'
+import { ScriptPanel }   from './components/ScriptPanel'
+import { Category, ScheduleSegment } from '../shared/types'
 
 const App: React.FC = () => {
-  const [status, setStatus] = useState<'idle' | 'running' | 'stopped'>('idle')
+  const [status, setStatus]                     = useState<'idle' | 'running' | 'stopped'>('idle')
   const [selectedCategories, setSelectedCategories] = useState<Category[]>(['tech', 'news'])
+  const [segments, setSegments]                 = useState<ScheduleSegment[]>([])
 
   return (
     <div className="app-container">
@@ -39,7 +41,10 @@ const App: React.FC = () => {
 
         <section className="dashboard-card">
           <h2>Today's Schedule</h2>
-          <SchedulePanel onCategoriesChange={setSelectedCategories} />
+          <SchedulePanel
+            onCategoriesChange={setSelectedCategories}
+            onScheduleGenerated={setSegments}
+          />
         </section>
 
         <section className="dashboard-card">
@@ -49,9 +54,7 @@ const App: React.FC = () => {
 
         <section className="dashboard-card">
           <h2>Current Segment</h2>
-          <p className="placeholder-text">
-            Now playing info will appear here after Sprint 3
-          </p>
+          <ScriptPanel segments={segments} />
         </section>
       </main>
     </div>

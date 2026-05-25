@@ -35,3 +35,4 @@ export interface RadioConfig {
   streamStartHour: number    // 0-23, default 8 (8am)
   targetDurationHours: number // default 8
 }
+

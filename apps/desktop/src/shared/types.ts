@@ -29,3 +29,15 @@ export interface RadioConfig {
   streamStartHour: number
   targetDurationHours: number
 }
+
+export interface SubSegment {
+  id?:          number
+  scheduleId:   number
+  articleIndex: number    // 0, 1, 2, 3
+  category:     Category
+  topic:        string
+  headline:     string   // the specific article title
+  script:       string
+  durationSec:  number
+  generatedAt:  string
+}

@@ -1,8 +1,9 @@
 import Database from 'better-sqlite3'
 import path from 'path'
 import { app } from 'electron'
-import { ScheduleSegment, DailySchedule } from '../shared/types'
+import { ScheduleSegment, DailySchedule, SubSegment } from '../shared/types'
 import { FetchedArticle, FinanceData } from './dataFetcher'
+import { GeneratedScript } from './contentGenerator'
 
 let db: Database.Database
 
@@ -84,6 +85,19 @@ function createTables(db: Database.Database): void {
       fetched_at     TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS sub_segments (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      schedule_id   INTEGER REFERENCES schedule(id),
+      article_index INTEGER NOT NULL,
+      category      TEXT NOT NULL,
+      topic         TEXT NOT NULL,
+      headline      TEXT NOT NULL,
+      script        TEXT NOT NULL,
+      duration_sec  INTEGER NOT NULL,
+      generated_at  TEXT NOT NULL
+    );
+
+
   `)
 }
 
@@ -94,24 +108,48 @@ export function getDatabase(): Database.Database {
 
 
 
-export function saveSchedule(schedule: DailySchedule): void {
+export function saveSchedule(schedule: DailySchedule): DailySchedule {
   const db = getDatabase()
 
-  // Clear existing schedule for this date
-  db.prepare('DELETE FROM schedule WHERE date = ?').run(schedule.date)
+  const saveTransaction = db.transaction(() => {
+    const existingRows = db.prepare(
+      'SELECT id FROM schedule WHERE date = ?'
+    ).all(schedule.date) as { id: number }[]
 
-  const insert = db.prepare(`
-    INSERT INTO schedule (date, segment_order, category, topic, duration_seconds, status)
-    VALUES (@date, @segmentOrder, @category, @topic, @durationSeconds, @status)
-  `)
-
-  const insertMany = db.transaction((segments: ScheduleSegment[]) => {
-    for (const seg of segments) {
-      insert.run(seg)
+    for (const row of existingRows) {
+      // Delete in order: deepest child first
+      db.prepare(
+        'DELETE FROM segment_analytics WHERE segment_id IN (SELECT id FROM segments WHERE schedule_id = ?)'
+      ).run(row.id)
+      db.prepare(
+        'DELETE FROM sub_segments WHERE schedule_id = ?'   // ← add this line
+      ).run(row.id)
+      db.prepare(
+        'DELETE FROM segments WHERE schedule_id = ?'
+      ).run(row.id)
     }
+
+    db.prepare('DELETE FROM schedule WHERE date = ?').run(schedule.date)
+
+    const insert = db.prepare(`
+      INSERT INTO schedule (date, segment_order, category, topic, duration_seconds, status)
+      VALUES (@date, @segmentOrder, @category, @topic, @durationSeconds, @status)
+    `)
+
+    const segmentsWithIds = schedule.segments.map(seg => {
+      const result = insert.run(seg)
+      return { ...seg, id: result.lastInsertRowid as number }
+    })
+
+    return segmentsWithIds
   })
 
-  insertMany(schedule.segments)
+  const segmentsWithIds = saveTransaction()
+
+  return {
+    ...schedule,
+    segments: segmentsWithIds,
+  }
 }
 
 export function loadTodaySchedule(): ScheduleSegment[] {
@@ -170,4 +208,75 @@ export function loadLatestFinanceData(): FinanceData[] {
     ORDER BY fetched_at DESC
     LIMIT 12
   `).all() as FinanceData[]
+}
+
+export function saveGeneratedScript(
+  scheduleId: number,
+  script:     GeneratedScript
+): number {
+  const db = getDatabase()
+  const result = db.prepare(`
+    INSERT INTO segments
+      (schedule_id, script, generated_at)
+    VALUES
+      (@scheduleId, @script, @generatedAt)
+  `).run({
+    scheduleId,
+    script:      script.script,
+    generatedAt: script.generatedAt,
+  })
+  return result.lastInsertRowid as number
+}
+
+export function loadScript(segmentId: number): string | null {
+  const db     = getDatabase()
+  const result = db.prepare(
+    'SELECT script FROM segments WHERE id = ?'
+  ).get(segmentId) as { script: string } | undefined
+  return result?.script ?? null
+}
+
+export function loadLatestScript(): { script: string; category: string; topic: string } | null {
+  const db = getDatabase()
+  return db.prepare(`
+    SELECT s.script, sc.category, sc.topic
+    FROM segments s
+    JOIN schedule sc ON s.schedule_id = sc.id
+    ORDER BY s.generated_at DESC
+    LIMIT 1
+  `).get() as { script: string; category: string; topic: string } | null
+}
+
+export function saveSubSegments(subSegments: SubSegment[]): SubSegment[] {
+  const db = getDatabase()
+
+  const insert = db.prepare(`
+    INSERT INTO sub_segments
+      (schedule_id, article_index, category, topic, headline, script, duration_sec, generated_at)
+    VALUES
+      (@scheduleId, @articleIndex, @category, @topic, @headline, @script, @durationSec, @generatedAt)
+  `)
+
+  const insertMany = db.transaction((items: SubSegment[]) => {
+    return items.map(item => {
+      const result = insert.run(item)
+      return { ...item, id: result.lastInsertRowid as number }
+    })
+  })
+
+  return insertMany(subSegments)
+}
+
+export function loadSubSegments(scheduleId: number): SubSegment[] {
+  const db = getDatabase()
+  return db.prepare(`
+    SELECT * FROM sub_segments
+    WHERE schedule_id = ?
+    ORDER BY article_index ASC
+  `).all(scheduleId) as SubSegment[]
+}
+
+export function clearSubSegments(scheduleId: number): void {
+  const db = getDatabase()
+  db.prepare('DELETE FROM sub_segments WHERE schedule_id = ?').run(scheduleId)
 }

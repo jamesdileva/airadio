@@ -1,22 +1,45 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
-import { initDatabase, saveSchedule, loadTodaySchedule } from './database'
-import { generateSchedule } from './scheduler'
 import path from 'path'
+import { Category } from '../shared/types'
+
+// Scheduler
+import { generateSchedule } from './scheduler'
+
+// Data fetching
 import {
   fetchDataForSchedule,
   fetchFinanceData,
-  FetchedArticle
+  fetchArticlesForTopic,
+  FetchedArticle,
 } from './dataFetcher'
-import { saveArticles, saveFinanceData, loadArticlesForCategory, loadLatestFinanceData } from './database'
-import { Category } from '../shared/types'
 
+// Content generation
+import {
+  generateSubSegments,
+  generateFallbackScript,
+} from './contentGenerator'
+
+// Database
+import {
+  initDatabase,
+  saveSchedule,
+  loadTodaySchedule,
+  saveArticles,
+  saveFinanceData,
+  loadArticlesForCategory,
+  loadLatestFinanceData,
+  saveSubSegments,
+  loadSubSegments,
+  clearSubSegments,
+} from './database'
 
 // ── IPC Handlers ──────────────────────────────────────────────────
-ipcMain.handle('schedule:generate', (_event, categories) => {
+
+ipcMain.handle('schedule:generate', (_event, categories: string[]) => {
   try {
-    const schedule = generateSchedule(categories)
-    saveSchedule(schedule)
-    return schedule
+    const schedule = generateSchedule(categories as any)
+    const savedSchedule = saveSchedule(schedule)
+    return savedSchedule
   } catch (err) {
     console.error('Schedule generation error:', err)
     throw err
@@ -35,11 +58,9 @@ ipcMain.handle('schedule:load', () => {
 ipcMain.handle('data:fetchForSchedule', async (_event, categories: Category[]) => {
   try {
     const dataMap = await fetchDataForSchedule(categories)
-    // Save each category's articles to SQLite
     for (const [, articles] of dataMap) {
       if (articles.length > 0) saveArticles(articles)
     }
-    // Convert Map to plain object for IPC transfer
     const result: Record<string, FetchedArticle[]> = {}
     for (const [cat, articles] of dataMap) {
       result[cat] = articles
@@ -70,6 +91,55 @@ ipcMain.handle('data:loadFinance', () => {
   return loadLatestFinanceData()
 })
 
+ipcMain.handle('script:generate', async (_event, payload: {
+  scheduleId: number
+  category:   string
+  topic:      string
+}) => {
+  console.log('=== SCRIPT GENERATE CALLED ===')
+  console.log('Payload:', payload)
+
+  try {
+    clearSubSegments(payload.scheduleId)
+
+    console.log(`Fetching articles for topic: "${payload.topic}"`)
+    const articles = await fetchArticlesForTopic(
+      payload.topic,
+      payload.category as any,
+      4
+    )
+    console.log('Articles found:', articles.length)
+    if (articles.length > 0) saveArticles(articles)
+
+    const financeData = payload.category === 'finance'
+      ? loadLatestFinanceData()
+      : []
+
+    const subSegments = await generateSubSegments(
+      payload.scheduleId,
+      payload.category as any,
+      payload.topic,
+      articles,
+      financeData
+    )
+
+    const saved = saveSubSegments(subSegments)
+    console.log(`Saved ${saved.length} sub-segments`)
+    return saved
+
+  } catch (err: any) {
+    console.error('=== SCRIPT GENERATION FAILED ===')
+    console.error('Error:', err.message)
+    return []
+  }
+})
+
+ipcMain.handle('script:loadSubSegments', (_event, scheduleId: number) => {
+  return loadSubSegments(scheduleId)
+})
+
+// ── Window ────────────────────────────────────────────────────────
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,
@@ -84,7 +154,6 @@ function createWindow(): void {
     }
   })
 
-  // In dev, load from Vite dev server
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173')
     win.webContents.openDevTools()

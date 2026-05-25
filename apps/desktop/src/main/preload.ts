@@ -3,17 +3,24 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  version:          process.versions.electron,
-  generateSchedule: (categories: string[]) =>
+  version:            process.versions.electron,
+  generateSchedule:   (categories: string[]) =>
     ipcRenderer.invoke('schedule:generate', categories),
-  loadSchedule:     () =>
+  loadSchedule:       () =>
     ipcRenderer.invoke('schedule:load'),
-  fetchData:        (categories: string[]) =>
+  fetchData:          (categories: string[]) =>
     ipcRenderer.invoke('data:fetchForSchedule', categories),
-  fetchFinance:     () =>
+  fetchFinance:       () =>
     ipcRenderer.invoke('data:fetchFinance'),
-  loadArticles:     (category: string) =>
+  loadArticles:       (category: string) =>
     ipcRenderer.invoke('data:loadArticles', category),
-  loadFinance:      () =>
+  loadFinance:        () =>
     ipcRenderer.invoke('data:loadFinance'),
+  generateScript:     (payload: {
+    scheduleId: number
+    category:   string
+    topic:      string
+  }) => ipcRenderer.invoke('script:generate', payload),
+  loadSubSegments:    (scheduleId: number) =>
+    ipcRenderer.invoke('script:loadSubSegments', scheduleId),
 })

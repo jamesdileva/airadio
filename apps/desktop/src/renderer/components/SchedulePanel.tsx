@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { Category, ScheduleSegment, DailySchedule } from '../../shared/types'
+
 const CATEGORIES: { id: Category; label: string; emoji: string }[] = [
-  { id: 'finance', label: 'Finance',  emoji: '📈' },
-  { id: 'tech',    label: 'Tech',     emoji: '💻' },
-  { id: 'gaming',  label: 'Gaming',   emoji: '🎮' },
-  { id: 'news',    label: 'News',     emoji: '📰' },
-  { id: 'niche',   label: 'Niche',    emoji: '🔭' },
+  { id: 'finance', label: 'Finance', emoji: '📈' },
+  { id: 'tech',    label: 'Tech',    emoji: '💻' },
+  { id: 'gaming',  label: 'Gaming',  emoji: '🎮' },
+  { id: 'news',    label: 'News',    emoji: '📰' },
+  { id: 'niche',   label: 'Niche',   emoji: '🔭' },
 ]
 
 function formatDuration(seconds: number): string {
@@ -14,24 +15,28 @@ function formatDuration(seconds: number): string {
   if (h > 0) return `${h}h ${m}m`
   return `${m}m`
 }
-// Update the props interface
+
 interface SchedulePanelProps {
-  onCategoriesChange?: (categories: Category[]) => void
+  onCategoriesChange?:  (categories: Category[]) => void
+  onScheduleGenerated?: (segments: ScheduleSegment[]) => void
 }
-export const SchedulePanel: React.FC<SchedulePanelProps> = ({ onCategoriesChange }) => {
+
+export const SchedulePanel: React.FC<SchedulePanelProps> = ({
+  onCategoriesChange,
+  onScheduleGenerated,
+}) => {
   const [selected, setSelected] = useState<Set<Category>>(new Set(['tech', 'news']))
   const [schedule, setSchedule] = useState<ScheduleSegment[]>([])
-  const [loading, setLoading] = useState(false)
-  // Notify parent of initial selection on mount
+  const [loading, setLoading]   = useState(false)
+
   React.useEffect(() => {
     onCategoriesChange?.(Array.from(selected))
   }, [])
-  // Update toggleCategory to notify parent
+
   const toggleCategory = (cat: Category) => {
     setSelected(prev => {
       const next = new Set(prev)
       next.has(cat) ? next.delete(cat) : next.add(cat)
-      // Notify App.tsx of the change
       onCategoriesChange?.(Array.from(next))
       return next
     })
@@ -45,14 +50,13 @@ export const SchedulePanel: React.FC<SchedulePanelProps> = ({ onCategoriesChange
         Array.from(selected)
       )
       setSchedule(result.segments)
+      onScheduleGenerated?.(result.segments)
     } catch (err) {
       console.error('Schedule generation failed:', err)
     } finally {
       setLoading(false)
     }
   }
-
-  
 
   return (
     <div className="schedule-panel">
