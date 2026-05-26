@@ -49,6 +49,8 @@ import {
   updateSubSegmentMixedAudio,
   startStreamSession,
   endStreamSession,
+  saveChatMessage,
+  loadRecentChatLog
   
 } from './database'
 
@@ -87,6 +89,15 @@ import {
   getStreamDuration,
   setStatusCallback,
 } from './streamingManager'
+
+import {
+  connectChat,
+  disconnectChat,
+  getMessageQueue,
+  clearQueue,
+  processChatWindow,
+  isChatConnected,
+} from './chatEngine'
 
 // ── IPC Handlers ──────────────────────────────────────────────────
 
@@ -382,6 +393,42 @@ ipcMain.handle('obs:getStatus', () => {
   return getStatus()
 })
 
+ipcMain.handle('chat:connect', async () => {
+  return connectChat()
+})
+
+ipcMain.handle('chat:disconnect', async () => {
+  await disconnectChat()
+  return { success: true }
+})
+
+ipcMain.handle('chat:getQueue', () => {
+  return getMessageQueue()
+})
+
+ipcMain.handle('chat:clearQueue', () => {
+  clearQueue()
+  return { success: true }
+})
+
+ipcMain.handle('chat:getStatus', () => {
+  return { connected: isChatConnected() }
+})
+
+ipcMain.handle('chat:processWindow', async (_event, maxResponses: number = 3) => {
+  const responses = await processChatWindow(maxResponses)
+
+  // Save all responses to SQLite
+  for (const r of responses) {
+    saveChatMessage(r.username, r.question, r.response)
+  }
+
+  return responses
+})
+
+ipcMain.handle('chat:getLog', () => {
+  return loadRecentChatLog(20)
+})
 
 // Stream session tracking
 let currentSessionId: number | null = null
@@ -418,6 +465,15 @@ ipcMain.handle('stream:getStatus', async () => {
 ipcMain.handle('stream:getDuration', () => {
   return getStreamDuration()
 })
+
+ipcMain.handle('obs:getConfig', () => {
+  return {
+    host:     'localhost',
+    port:     parseInt(process.env.STREAMLABS_PORT || '59650'),
+    password: process.env.STREAMLABS_TOKEN || '',
+  }
+})
+
 
 
 // ── Window ────────────────────────────────────────────────────────

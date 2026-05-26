@@ -75,8 +75,24 @@ streamStart:      () =>
     ipcRenderer.invoke('stream:getStatus'),
   streamGetDuration: () =>
     ipcRenderer.invoke('stream:getDuration'),
-onStreamStatus: (cb: (status: any) => void) => {
-  ipcRenderer.removeAllListeners('stream:statusUpdate')
-  ipcRenderer.on('stream:statusUpdate', (_event, status) => cb(status))
-},
+  onStreamStatus: (cb: (status: any) => void) => {
+    ipcRenderer.removeAllListeners('stream:statusUpdate')
+    ipcRenderer.on('stream:statusUpdate', (_event, status) => cb(status))
+  },
+  obsGetConfig: () => ipcRenderer.invoke('obs:getConfig'),
+
+  chatConnect:      () =>
+    ipcRenderer.invoke('chat:connect'),
+  chatDisconnect:   () =>
+    ipcRenderer.invoke('chat:disconnect'),
+  chatGetQueue:     () =>
+    ipcRenderer.invoke('chat:getQueue'),
+  chatGetStatus:    () =>
+    ipcRenderer.invoke('chat:getStatus'),
+  chatProcessWindow: (maxResponses?: number) =>
+    ipcRenderer.invoke('chat:processWindow', maxResponses),
+  chatGetLog:       () =>
+    ipcRenderer.invoke('chat:getLog'),
+
+  
 })

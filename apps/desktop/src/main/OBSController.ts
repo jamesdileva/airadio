@@ -1,4 +1,34 @@
 import SockJS from 'sockjs-client'
+import * as fs   from 'fs'
+import * as path from 'path'
+
+function loadEnv(): void {
+  const possiblePaths = [
+    path.join(process.cwd(), '.env'),
+    path.join(__dirname, '../../../../.env'),
+    path.join(__dirname, '../../../.env'),
+    path.join(__dirname, '../../.env'),
+  ]
+  for (const envPath of possiblePaths) {
+    if (fs.existsSync(envPath)) {
+      const lines = fs.readFileSync(envPath, 'utf-8').split('\n')
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith('#')) continue
+        const eqIndex = trimmed.indexOf('=')
+        if (eqIndex > 0) {
+          const key = trimmed.substring(0, eqIndex).trim()
+          const val = trimmed.substring(eqIndex + 1).trim()
+          process.env[key] = val
+        }
+      }
+      return
+    }
+  }
+}
+
+// Load immediately when module is imported
+loadEnv()
 
 // ── Config ────────────────────────────────────────────────────────
 

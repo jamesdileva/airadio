@@ -363,3 +363,24 @@ export function getLatestSession(): any {
     ORDER BY id DESC LIMIT 1
   `).get()
 }
+
+export function saveChatMessage(
+  username: string,
+  message:  string,
+  response: string
+): void {
+  const db = getDatabase()
+  db.prepare(`
+    INSERT INTO chat_log (platform, username, message, response, responded_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run('twitch', username, message, response, new Date().toISOString())
+}
+
+export function loadRecentChatLog(limit: number = 20): any[] {
+  const db = getDatabase()
+  return db.prepare(`
+    SELECT * FROM chat_log
+    ORDER BY id DESC
+    LIMIT ?
+  `).all(limit)
+}

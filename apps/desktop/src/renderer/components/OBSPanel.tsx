@@ -7,10 +7,17 @@ interface OBSStatus {
   error?:       string
 }
 
+
+
 export const OBSPanel: React.FC = () => {
   const [status,    setStatus]    = useState<OBSStatus>({
     connected: false, currentScene: null, streaming: false
   })
+  useEffect(() => {
+    (window as any).electronAPI.obsGetConfig().then((cfg: any) => {
+      if (cfg.password) setConfig(cfg)
+    })
+  }, [])
   const [scenes,    setScenes]    = useState<string[]>([])
   const [config,    setConfig]    = useState({
     host:     'localhost',

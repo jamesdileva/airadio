@@ -4,6 +4,7 @@ import { DataPanel }      from './components/DataPanel'
 import { ScriptPanel }    from './components/ScriptPanel'
 import { OBSPanel }       from './components/OBSPanel'
 import { Category, ScheduleSegment } from '../shared/types'
+import { ChatPanel } from './components/ChatPanel'
 
 type StreamState = 'idle' | 'starting' | 'live' | 'stopping' | 'error'
 
@@ -126,6 +127,13 @@ const App: React.FC = () => {
           <h2>Current Segment</h2>
           <ScriptPanel segments={segments} />
         </section>
+
+        <section className="dashboard-card">
+          <h2>Chat</h2>
+          <ChatPanel />
+        </section>
+
+        
       </main>
     </div>
   )
