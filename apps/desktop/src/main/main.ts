@@ -99,6 +99,12 @@ import {
   isChatConnected,
 } from './chatEngine'
 
+import {
+  getAnalyticsSummary,
+  getSessionSummaries,
+  cleanupOldAudio,
+} from './analytics'
+
 // ── IPC Handlers ──────────────────────────────────────────────────
 
 ipcMain.handle('schedule:generate', (_event, categories: string[]) => {
@@ -475,6 +481,19 @@ ipcMain.handle('obs:getConfig', () => {
 })
 
 
+ipcMain.handle('analytics:getSummary', () => {
+  return getAnalyticsSummary()
+})
+
+ipcMain.handle('analytics:getSessions', (_event, limit: number = 10) => {
+  return getSessionSummaries(limit)
+})
+
+ipcMain.handle('analytics:cleanup', (_event, daysOld: number = 30) => {
+  return cleanupOldAudio(daysOld)
+})
+
+
 
 // ── Window ────────────────────────────────────────────────────────
 
@@ -515,8 +534,14 @@ app.whenReady().then(() => {
   try {
     initDatabase()
     console.log('Database ready')
+
+    // Auto-cleanup audio files older than 30 days
+    const cleanup = cleanupOldAudio(30)
+    if (cleanup.filesDeleted > 0) {
+      console.log(`Auto-cleanup: removed ${cleanup.filesDeleted} files, freed ${cleanup.mbFreed}MB`)
+    }
   } catch (err) {
-    console.error('Database init failed:', err)
+    console.error('Startup error:', err)
   }
 
   createWindow()

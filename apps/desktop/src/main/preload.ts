@@ -94,5 +94,11 @@ streamStart:      () =>
   chatGetLog:       () =>
     ipcRenderer.invoke('chat:getLog'),
 
-  
+  analyticsGetSummary:  () =>
+    ipcRenderer.invoke('analytics:getSummary'),
+  analyticsGetSessions: (limit?: number) =>
+    ipcRenderer.invoke('analytics:getSessions', limit),
+  analyticsCleanup:     (daysOld?: number) =>
+    ipcRenderer.invoke('analytics:cleanup', daysOld),
+
 })

@@ -5,6 +5,7 @@ import { ScriptPanel }    from './components/ScriptPanel'
 import { OBSPanel }       from './components/OBSPanel'
 import { Category, ScheduleSegment } from '../shared/types'
 import { ChatPanel } from './components/ChatPanel'
+import { AnalyticsPanel } from './components/AnalyticsPanel'
 
 type StreamState = 'idle' | 'starting' | 'live' | 'stopping' | 'error'
 
@@ -81,60 +82,63 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="app-main">
-        <section className="dashboard-card">
-          <h2>Stream Control</h2>
-          <div className="stream-control">
-            <div className="stream-buttons">
-              <button
-                className="btn btn-start"
-                onClick={handleStart}
-                disabled={streamState !== 'idle' && streamState !== 'error'}
-              >
-                ▶ Go Live
-              </button>
-              <button
-                className="btn btn-stop"
-                onClick={handleStop}
-                disabled={streamState !== 'live'}
-              >
-                ■ End Stream
-              </button>
-            </div>
-            {streamError && (
-              <p className="stream-error">{streamError}</p>
-            )}
-            <div className="obs-panel-wrapper">
-              <OBSPanel />
-            </div>
+      
+
+    <main className="app-main">
+      <section className="dashboard-card">
+        <h2>Stream Control</h2>
+        <div className="stream-control">
+          <div className="stream-buttons">
+            <button
+              className="btn btn-start"
+              onClick={handleStart}
+              disabled={streamState !== 'idle' && streamState !== 'error'}
+            >
+              ▶ Go Live
+            </button>
+            <button
+              className="btn btn-stop"
+              onClick={handleStop}
+              disabled={streamState !== 'live'}
+            >
+              ■ End Stream
+            </button>
           </div>
-        </section>
+          {streamError && <p className="stream-error">{streamError}</p>}
+          <div className="obs-panel-wrapper">
+            <OBSPanel />
+          </div>
+        </div>
+      </section>
 
-        <section className="dashboard-card">
-          <h2>Today's Schedule</h2>
-          <SchedulePanel
-            onCategoriesChange={setSelectedCategories}
-            onScheduleGenerated={setSegments}
-          />
-        </section>
+      <section className="dashboard-card">
+        <h2>Analytics</h2>
+        <AnalyticsPanel />
+      </section>
 
-        <section className="dashboard-card">
-          <h2>Live Data</h2>
-          <DataPanel selectedCategories={selectedCategories} />
-        </section>
+      <section className="dashboard-card">
+        <h2>Today's Schedule</h2>
+        <SchedulePanel
+          onCategoriesChange={setSelectedCategories}
+          onScheduleGenerated={setSegments}
+        />
+      </section>
 
-        <section className="dashboard-card">
-          <h2>Current Segment</h2>
-          <ScriptPanel segments={segments} />
-        </section>
+      <section className="dashboard-card">
+        <h2>Live Data</h2>
+        <DataPanel selectedCategories={selectedCategories} />
+      </section>
 
-        <section className="dashboard-card">
-          <h2>Chat</h2>
-          <ChatPanel />
-        </section>
+      <section className="dashboard-card">
+        <h2>Current Segment</h2>
+        <ScriptPanel segments={segments} />
+      </section>
 
-        
-      </main>
+      <section className="dashboard-card">
+        <h2>Chat</h2>
+        <ChatPanel />
+      </section>
+    </main>
     </div>
   )
 }
