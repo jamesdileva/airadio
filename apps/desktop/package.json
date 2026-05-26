@@ -1,5 +1,5 @@
 {
-  "name": "ai-radio-desktop",
+  "name": "elmwave-desktop",
   "version": "0.1.0",
   "main": "dist/main/main.js",
   "scripts": {
@@ -14,13 +14,17 @@
     "dotenv": "^17.4.2",
     "electron": "^29.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "sockjs-client": "^1.6.1",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",
     "@types/node": "^20.19.41",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@types/sockjs-client": "^1.5.4",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.2.0",
     "concurrently": "^8.2.0",
     "electron-builder": "^24.0.0",

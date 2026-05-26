@@ -3,6 +3,7 @@ import { SchedulePanel } from './components/SchedulePanel'
 import { DataPanel }     from './components/DataPanel'
 import { ScriptPanel }   from './components/ScriptPanel'
 import { Category, ScheduleSegment } from '../shared/types'
+import { OBSPanel } from './components/OBSPanel'
 
 const App: React.FC = () => {
   const [status, setStatus]                     = useState<'idle' | 'running' | 'stopped'>('idle')
@@ -12,7 +13,7 @@ const App: React.FC = () => {
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1>AI Radio Network</h1>
+        <h1>ElmWave</h1>
         <span className={`status-badge status-${status}`}>
           {status.toUpperCase()}
         </span>
@@ -20,7 +21,10 @@ const App: React.FC = () => {
 
       <main className="app-main">
         <section className="dashboard-card">
-          <h2>Stream Control</h2>
+          <section className="dashboard-card">
+            <h2>Stream Control</h2>
+            <OBSPanel />
+          </section>
           <div className="button-group">
             <button
               className="btn btn-start"

@@ -65,6 +65,18 @@ import {
   getMixedAudioPath,
 } from './audioMixer'
 
+import {
+  connectOBS,
+  disconnectOBS,
+  switchScene,
+  getScenes,
+  startStreaming,
+  stopStreaming,
+  getStreamStatus,
+  getStatus,
+  SCENES,
+} from './OBSController'
+
 // ── IPC Handlers ──────────────────────────────────────────────────
 
 ipcMain.handle('schedule:generate', (_event, categories: string[]) => {
@@ -319,6 +331,47 @@ ipcMain.handle('mixer:getAudioData', (_event, filePath: string) => {
   }
 })
 
+ipcMain.handle('obs:connect', async (_event, config: {
+  host:     string
+  port:     number
+  password: string
+}) => {
+  return connectOBS(config)
+})
+
+ipcMain.handle('obs:disconnect', async () => {
+  await disconnectOBS()
+  return { success: true }
+})
+
+ipcMain.handle('obs:switchScene', async (_event, sceneName: string) => {
+  const success = await switchScene(sceneName)
+  return { success }
+})
+
+ipcMain.handle('obs:getScenes', async () => {
+  return getScenes()
+})
+
+ipcMain.handle('obs:startStream', async () => {
+  const success = await startStreaming()
+  return { success }
+})
+
+ipcMain.handle('obs:stopStream', async () => {
+  const success = await stopStreaming()
+  return { success }
+})
+
+ipcMain.handle('obs:getStreamStatus', async () => {
+  return getStreamStatus()
+})
+
+ipcMain.handle('obs:getStatus', () => {
+  return getStatus()
+})
+
+
 
 // ── Window ────────────────────────────────────────────────────────
 
@@ -328,7 +381,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 1024,
     minHeight: 600,
-    title: 'AI Radio Network',
+    title: 'ElmWave',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

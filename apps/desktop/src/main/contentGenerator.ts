@@ -165,7 +165,7 @@ export function generateFallbackScript(
   category: Category,
   topic:    string
 ): GeneratedScript {
-  const script = `This is ${HOST.name} on AI Radio Network. 
+  const script = `This is ${HOST.name} on Elm Wave Network. 
 We're having a brief technical moment on our end, but we will be right back 
 with your ${category} coverage. Stay tuned.`
 
@@ -270,12 +270,12 @@ function buildSingleArticlePrompt(
   const isLast   = partNum === totalParts
 
   const intro = isFirst
-  ? `This is the opening of the ${topic} segment. Open with "You're listening to AI Radio Network" then introduce the story.`
-  : `This is part ${partNum} of ${totalParts}. Do NOT say "You're listening to AI Radio Network" — jump straight into the story with a brief transition from the previous piece.`
+  ? `This is the opening of the ${topic} segment. Open with "You're listening to Elm Wave Network" then introduce the story.`
+  : `This is part ${partNum} of ${totalParts}. Do NOT say "You're listening to Elm Wave Network" — jump straight into the story with a brief transition from the previous piece.`
 
 const outro = isLast
-  ? `End with: "That's all for this segment on ${topic}. Stay tuned to AI Radio Network."`
-  : `End with a short generic transition like "Up next on AI Radio Network, we have another story worth your attention." NEVER mention or hint at what the next story is about.`
+  ? `End with: "That's all for this segment on ${topic}. Stay tuned to Elm Wave Network."`
+  : `End with a short generic transition like "Up next on Elm Wave Network, we have another story worth your attention." NEVER mention or hint at what the next story is about.`
 
   const marketContext = category === 'finance' && financeData.length > 0
     ? `\nCURRENT MARKET DATA:\n${financeData.slice(0, 4).map(f => {

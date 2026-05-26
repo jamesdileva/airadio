@@ -390,7 +390,7 @@ Using the topic title as the NewsAPI query returned articles that literally cont
 [ ] Terminal 2 shows topic query translation log
 [ ] Terminal 2 shows "Generating sub-segment 1/4: [headline]"
 [ ] Part 1, Part 2 tabs appear after generation (15-90 seconds)
-[ ] First sub-segment opens with "You're listening to AI Radio Network"
+[ ] First sub-segment opens with "You're listening to Elm Wave Network"
 [ ] Second and later sub-segments jump straight into the story
 [ ] No sub-segment ends mid-sentence
 [ ] No sub-segment mentions what the next story will be specifically

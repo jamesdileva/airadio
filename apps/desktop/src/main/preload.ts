@@ -49,4 +49,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('mixer:getTracks'),
   getMixedAudioData:  (filePath: string) =>
     ipcRenderer.invoke('mixer:getAudioData', filePath),
+  
+  obsConnect:       (config: { host: string; port: number; password: string }) =>
+  ipcRenderer.invoke('obs:connect', config),
+obsDisconnect:    () =>
+  ipcRenderer.invoke('obs:disconnect'),
+obsSwitchScene:   (sceneName: string) =>
+  ipcRenderer.invoke('obs:switchScene', sceneName),
+obsGetScenes:     () =>
+  ipcRenderer.invoke('obs:getScenes'),
+obsStartStream:   () =>
+  ipcRenderer.invoke('obs:startStream'),
+obsStopStream:    () =>
+  ipcRenderer.invoke('obs:stopStream'),
+obsGetStatus:     () =>
+  ipcRenderer.invoke('obs:getStatus'),
+obsGetStreamStatus: () =>
+  ipcRenderer.invoke('obs:getStreamStatus'),
+
 })

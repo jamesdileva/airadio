@@ -1,0 +1,267 @@
+import SockJS from 'sockjs-client'
+
+// ── Config ────────────────────────────────────────────────────────
+
+export const SCENES = {
+  STARTING: 'Starting',
+  ON_AIR:   'On Air',
+  BREAK:    'Break',
+} as const
+
+export type SceneName = typeof SCENES[keyof typeof SCENES]
+
+export interface OBSStatus {
+  connected:    boolean
+  currentScene: string | null
+  streaming:    boolean
+  error?:       string
+}
+
+export interface OBSConfig {
+  host:     string
+  port:     number
+  password: string  // API token
+}
+
+// ── State ─────────────────────────────────────────────────────────
+
+let socket:       any     = null
+let isConnected:  boolean = false
+let currentScene: string | null = null
+let nextId:       number  = 1
+const pending:    Map<number, { resolve: Function; reject: Function }> = new Map()
+const subs:       Map<string, Function> = new Map()
+
+// ── Core Message Handler ──────────────────────────────────────────
+
+function onMessage(data: string) {
+  try {
+    const msg = JSON.parse(data)
+    
+    // Handle request responses
+    const req = pending.get(msg.id)
+    if (req) {
+      pending.delete(msg.id)
+      if (msg.error) req.reject(new Error(msg.error.message))
+      else req.resolve(msg.result)
+      return
+    }
+
+    // Handle subscription events
+    const result = msg.result
+    if (result?._type === 'EVENT' && result?.emitter === 'STREAM') {
+      const cb = subs.get(result.resourceId)
+      if (cb) cb(result.data)
+    }
+  } catch (err) {
+    // ignore parse errors
+  }
+}
+
+// ── Request Helper ────────────────────────────────────────────────
+
+function request(resourceId: string, method: string, ...args: any[]): Promise<any> {
+  return new Promise((resolve, reject) => {
+    // During auth, socket exists but isConnected isn't set yet
+    // so check socket directly instead of isConnected
+    if (!socket) {
+      reject(new Error('Not connected to Streamlabs'))
+      return
+    }
+
+    const id = nextId++
+    const body = {
+      jsonrpc: '2.0',
+      id,
+      method,
+      params: { resource: resourceId, args }
+    }
+
+    pending.set(id, { resolve, reject })
+    socket.send(JSON.stringify(body))
+
+    setTimeout(() => {
+      if (pending.has(id)) {
+        pending.delete(id)
+        reject(new Error(`Request timed out: ${method}`))
+      }
+    }, 8000)
+  })
+}
+
+function subscribe(resourceId: string, channel: string, cb: Function): void {
+  request(resourceId, channel).then((info: any) => {
+    subs.set(info.resourceId, cb)
+  }).catch(console.error)
+}
+
+// ── Connection ────────────────────────────────────────────────────
+
+export async function connectOBS(config: OBSConfig): Promise<OBSStatus> {
+  return new Promise((resolve) => {
+    if (socket && isConnected) {
+      resolve(getStatus())
+      return
+    }
+
+    const url = `http://${config.host}:${config.port}/api`
+    console.log(`Connecting to Streamlabs at ${url}...`)
+
+    socket = new SockJS(url)
+
+    const timeout = setTimeout(() => {
+      socket?.close()
+      socket = null
+      resolve({
+        connected:    false,
+        currentScene: null,
+        streaming:    false,
+        error:        'Connection timed out',
+      })
+    }, 10000)
+
+    socket.onopen = () => {
+      console.log('Socket open, authenticating...')
+      // Authenticate with token
+      request('TcpServerService', 'auth', config.password)
+        .then(async () => {
+          clearTimeout(timeout)
+          isConnected = true
+          console.log('Streamlabs authenticated!')
+
+          // Get current scene
+          try {
+            const scenes = await request('ScenesService', 'getScenes')
+            const activeId = await request('ScenesService', 'activeSceneId')
+            const active = scenes.find((s: any) => s.id === activeId)
+            currentScene = active?.name ?? null
+            console.log('Current scene:', currentScene)
+
+            // Subscribe to scene switches
+            subscribe('ScenesService', 'sceneSwitched', (scene: any) => {
+              currentScene = scene.name
+              console.log('Scene switched to:', currentScene)
+            })
+          } catch (err) {
+            console.warn('Could not get scenes:', err)
+          }
+
+          resolve(getStatus())
+        })
+        .catch((err: Error) => {
+          clearTimeout(timeout)
+          socket?.close()
+          socket      = null
+          isConnected = false
+          resolve({
+            connected:    false,
+            currentScene: null,
+            streaming:    false,
+            error:        `Auth failed: ${err.message}`,
+          })
+        })
+    }
+
+    socket.onmessage = (e: any) => {
+      onMessage(e.data)
+    }
+
+    socket.onclose = () => {
+      console.log('Streamlabs disconnected')
+      isConnected  = false
+      currentScene = null
+      socket       = null
+    }
+
+    socket.onerror = (err: any) => {
+      console.error('Socket error:', err)
+    }
+  })
+}
+
+export async function disconnectOBS(): Promise<void> {
+  if (socket) {
+    socket.close()
+    socket       = null
+    isConnected  = false
+    currentScene = null
+  }
+}
+
+// ── Scene Control ─────────────────────────────────────────────────
+
+export async function switchScene(sceneName: string): Promise<boolean> {
+  try {
+    // Get scene ID from name
+    const scenes = await request('ScenesService', 'getScenes')
+    const scene  = scenes.find((s: any) => s.name === sceneName)
+    if (!scene) {
+      console.error(`Scene not found: ${sceneName}`)
+      return false
+    }
+    await request('ScenesService', 'makeSceneActive', scene.id)
+    currentScene = sceneName
+    console.log('Switched to scene:', sceneName)
+    return true
+  } catch (err: any) {
+    console.error('Scene switch failed:', err.message)
+    return false
+  }
+}
+
+export async function getScenes(): Promise<string[]> {
+  try {
+    const scenes = await request('ScenesService', 'getScenes')
+    return scenes.map((s: any) => s.name)
+  } catch (err: any) {
+    console.error('Get scenes failed:', err.message)
+    return []
+  }
+}
+
+// ── Stream Control ────────────────────────────────────────────────
+
+export async function startStreaming(): Promise<boolean> {
+  try {
+    await request('StreamingService', 'startStreaming')
+    console.log('Stream started')
+    return true
+  } catch (err: any) {
+    console.error('Start stream failed:', err.message)
+    return false
+  }
+}
+
+export async function stopStreaming(): Promise<boolean> {
+  try {
+    await request('StreamingService', 'stopStreaming')
+    console.log('Stream stopped')
+    return true
+  } catch (err: any) {
+    console.error('Stop stream failed:', err.message)
+    return false
+  }
+}
+
+export async function getStreamStatus(): Promise<{ streaming: boolean }> {
+  try {
+    const status = await request('StreamingService', 'getModel')
+    return { streaming: status?.streamingStatus === 'live' }
+  } catch {
+    return { streaming: false }
+  }
+}
+
+// ── Status ────────────────────────────────────────────────────────
+
+export function getStatus(): OBSStatus {
+  return {
+    connected:    isConnected,
+    currentScene: currentScene,
+    streaming:    false,
+  }
+}
+
+export function isOBSConnected(): boolean {
+  return isConnected
+}

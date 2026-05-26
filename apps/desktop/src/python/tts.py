@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AI Radio Network - TTS Engine
+Elm Wave Network- TTS Engine
 Reads a script file and outputs a .wav audio file using Kokoro TTS.
 
 Usage:
