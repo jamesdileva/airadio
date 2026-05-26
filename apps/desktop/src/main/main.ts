@@ -47,6 +47,8 @@ import {
   clearSubSegments,
   updateSubSegmentAudio,
   updateSubSegmentMixedAudio,
+  startStreamSession,
+  endStreamSession,
   
 } from './database'
 
@@ -76,6 +78,15 @@ import {
   getStatus,
   SCENES,
 } from './OBSController'
+
+import {
+  startStream,
+  stopStream,
+  getStatus       as getStreamingStatus,
+  getCurrentState,
+  getStreamDuration,
+  setStatusCallback,
+} from './streamingManager'
 
 // ── IPC Handlers ──────────────────────────────────────────────────
 
@@ -372,6 +383,42 @@ ipcMain.handle('obs:getStatus', () => {
 })
 
 
+// Stream session tracking
+let currentSessionId: number | null = null
+
+// Push stream status updates to renderer
+setStatusCallback((status) => {
+  const windows = BrowserWindow.getAllWindows()
+  windows.forEach(win => {
+    win.webContents.send('stream:statusUpdate', status)
+  })
+})
+
+ipcMain.handle('stream:start', async () => {
+  const status = await startStream()
+  if (status.streaming) {
+    currentSessionId = startStreamSession('twitch')
+  }
+  return status
+})
+
+ipcMain.handle('stream:stop', async () => {
+  const status = await stopStream()
+  if (currentSessionId) {
+    endStreamSession(currentSessionId)
+    currentSessionId = null
+  }
+  return status
+})
+
+ipcMain.handle('stream:getStatus', async () => {
+  return getStreamingStatus()
+})
+
+ipcMain.handle('stream:getDuration', () => {
+  return getStreamDuration()
+})
+
 
 // ── Window ────────────────────────────────────────────────────────
 
@@ -381,7 +428,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 1024,
     minHeight: 600,
-    title: 'ElmWave',
+    title: 'WestWaveGem',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

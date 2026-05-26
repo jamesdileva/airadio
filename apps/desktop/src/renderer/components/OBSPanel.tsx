@@ -14,7 +14,7 @@ export const OBSPanel: React.FC = () => {
   const [scenes,    setScenes]    = useState<string[]>([])
   const [config,    setConfig]    = useState({
     host:     'localhost',
-    port:     4455,
+    port:     59650,
     password: '',
   })
   const [connecting, setConnecting] = useState(false)

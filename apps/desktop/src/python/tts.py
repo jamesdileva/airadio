@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Elm Wave Network- TTS Engine
+West Wave Gem Network- TTS Engine
 Reads a script file and outputs a .wav audio file using Kokoro TTS.
 
 Usage:

@@ -67,4 +67,16 @@ obsGetStatus:     () =>
 obsGetStreamStatus: () =>
   ipcRenderer.invoke('obs:getStreamStatus'),
 
+streamStart:      () =>
+    ipcRenderer.invoke('stream:start'),
+  streamStop:       () =>
+    ipcRenderer.invoke('stream:stop'),
+  streamGetStatus:  () =>
+    ipcRenderer.invoke('stream:getStatus'),
+  streamGetDuration: () =>
+    ipcRenderer.invoke('stream:getDuration'),
+onStreamStatus: (cb: (status: any) => void) => {
+  ipcRenderer.removeAllListeners('stream:statusUpdate')
+  ipcRenderer.on('stream:statusUpdate', (_event, status) => cb(status))
+},
 })

@@ -98,11 +98,19 @@ function subscribe(resourceId: string, channel: string, cb: Function): void {
 // ── Connection ────────────────────────────────────────────────────
 
 export async function connectOBS(config: OBSConfig): Promise<OBSStatus> {
+    
   return new Promise((resolve) => {
     if (socket && isConnected) {
       resolve(getStatus())
       return
     }
+     // Use .env values as fallback if config fields are empty
+    if (!config.password) {
+        config.password = process.env.STREAMLABS_TOKEN || ''
+    }
+    if (!config.port || config.port === 4455) {
+        config.port = parseInt(process.env.STREAMLABS_PORT || '59650')
+    } 
 
     const url = `http://${config.host}:${config.port}/api`
     console.log(`Connecting to Streamlabs at ${url}...`)

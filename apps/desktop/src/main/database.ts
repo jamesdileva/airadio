@@ -338,3 +338,28 @@ export function loadSubSegmentsWithPaths(scheduleId: number): any[] {
   `).all(scheduleId)
 }
 
+export function startStreamSession(platform: string): number {
+  const db     = getDatabase()
+  const result = db.prepare(`
+    INSERT INTO stream_sessions (started_at, platform)
+    VALUES (?, ?)
+  `).run(new Date().toISOString(), platform)
+  return result.lastInsertRowid as number
+}
+
+export function endStreamSession(sessionId: number): void {
+  const db = getDatabase()
+  db.prepare(`
+    UPDATE stream_sessions
+    SET ended_at = ?
+    WHERE id = ?
+  `).run(new Date().toISOString(), sessionId)
+}
+
+export function getLatestSession(): any {
+  const db = getDatabase()
+  return db.prepare(`
+    SELECT * FROM stream_sessions
+    ORDER BY id DESC LIMIT 1
+  `).get()
+}
