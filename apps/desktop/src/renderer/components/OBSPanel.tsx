@@ -13,11 +13,21 @@ export const OBSPanel: React.FC = () => {
   const [status,    setStatus]    = useState<OBSStatus>({
     connected: false, currentScene: null, streaming: false
   })
+
+
   useEffect(() => {
     (window as any).electronAPI.obsGetConfig().then((cfg: any) => {
       if (cfg.password) setConfig(cfg)
     })
   }, [])
+
+  useEffect(() => {
+  (window as any).electronAPI.onSceneChanged((scene: string) => {
+    setStatus(prev => ({ ...prev, currentScene: scene }))
+  })
+}, [])
+
+
   const [scenes,    setScenes]    = useState<string[]>([])
   const [config,    setConfig]    = useState({
     host:     'localhost',
@@ -58,6 +68,7 @@ export const OBSPanel: React.FC = () => {
       setStatus(prev => ({ ...prev, currentScene: sceneName }))
     }
   }
+
 
   return (
     <div className="obs-panel">

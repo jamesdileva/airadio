@@ -183,20 +183,6 @@ export function saveArticles(articles: FetchedArticle[]): void {
   insertMany(articles)
 }
 
-export function saveFinanceData(data: FinanceData[]): void {
-  const db = getDatabase()
-  const insert = db.prepare(`
-    INSERT INTO finance_data
-      (symbol, price, change, change_percent, fetched_at)
-    VALUES
-      (@symbol, @price, @change, @changePercent, @fetchedAt)
-  `)
-  const insertMany = db.transaction((items: FinanceData[]) => {
-    for (const item of items) insert.run(item)
-  })
-  insertMany(data)
-}
-
 export function loadArticlesForCategory(category: string): FetchedArticle[] {
   const db = getDatabase()
   const today = new Date().toISOString().split('T')[0]
@@ -207,15 +193,6 @@ export function loadArticlesForCategory(category: string): FetchedArticle[] {
     ORDER BY id DESC
     LIMIT 10
   `).all(category, today) as FetchedArticle[]
-}
-
-export function loadLatestFinanceData(): FinanceData[] {
-  const db = getDatabase()
-  return db.prepare(`
-    SELECT * FROM finance_data
-    ORDER BY fetched_at DESC
-    LIMIT 12
-  `).all() as FinanceData[]
 }
 
 export function saveGeneratedScript(
@@ -383,4 +360,9 @@ export function loadRecentChatLog(limit: number = 20): any[] {
     ORDER BY id DESC
     LIMIT ?
   `).all(limit)
+}
+
+// Add at the bottom of database.ts
+export function _setDatabase(externalDb: Database.Database): void {
+  db = externalDb
 }

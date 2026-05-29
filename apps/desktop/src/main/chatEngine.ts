@@ -58,10 +58,18 @@ loadEnv()
 // ── Connection ────────────────────────────────────────────────────
 
 export async function connectChat(): Promise<{ success: boolean; error?: string }> {
+    if (isConnected) {
+        console.log('Chat already connected, skipping')
+        return { success: true }
+    }  
   const channel  = process.env.TWITCH_CHANNEL      || ''
   const username = process.env.TWITCH_BOT_USERNAME  || ''
   const token    = process.env.TWITCH_OAUTH_TOKEN   || ''
-
+  const refreshed = await refreshToken()
+  if (refreshed) {
+    process.env.TWITCH_OAUTH_TOKEN = refreshed
+    console.log('Token refreshed before connecting')
+  }
   if (!channel || !token) {
     return { success: false, error: 'TWITCH_CHANNEL and TWITCH_OAUTH_TOKEN required in .env' }
   }
@@ -79,7 +87,7 @@ export async function connectChat(): Promise<{ success: boolean; error?: string 
         },
         channels: [`#${process.env.TWITCH_CHANNEL || ''}`],  // ← add # prefix
     })
-    
+
     const recentIds = new Set<string>()
 
     client.on('message', (_channel, tags, message, self) => {
@@ -144,6 +152,7 @@ export async function disconnectChat(): Promise<void> {
     console.log('Chat disconnected')
   }
 }
+
 
 // ── Queue Management ──────────────────────────────────────────────
 

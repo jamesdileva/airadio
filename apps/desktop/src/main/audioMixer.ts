@@ -28,6 +28,7 @@ export interface MusicTrack {
 
 // ── Helpers ────────────────────────────────────────────────────────
 
+
 function ensureDirs(): void {
   if (!fs.existsSync(MIXED_OUT_DIR)) {
     fs.mkdirSync(MIXED_OUT_DIR, { recursive: true })
@@ -71,6 +72,172 @@ function runFFmpeg(args: string[]): Promise<{ success: boolean; stderr: string }
       resolve({ success: false, stderr: err.message })
     })
   })
+}
+
+export async function playVoiceOverMusic(
+  voicePaths: string[],
+  musicPath:  string
+): Promise<void> {
+  console.log(`[playVoiceOverMusic] ENTERED with ${voicePaths.length} files`)
+  
+  const validPaths = voicePaths.filter(p => fs.existsSync(p))
+  console.log(`[playVoiceOverMusic] Valid paths: ${validPaths.length}`)
+  
+  if (validPaths.length === 0) {
+    console.log('[playVoiceOverMusic] No valid paths, returning early')
+    return
+  }
+
+  ensureDirs()
+  const timestamp     = Date.now()
+  // Write concat list
+  const concatContent = validPaths
+    .map(p => `file '${p.replace(/\\/g, '/')}'`)
+    .join('\n')
+  const concatFile = path.join(MIXED_OUT_DIR, 'concat_list.txt')
+  fs.writeFileSync(concatFile, concatContent)
+
+  // First concatenate all voice files into one temp file
+  const combinedVoice = path.join(MIXED_OUT_DIR, `combined_${timestamp}.wav`)
+
+  await new Promise<void>((resolve) => {
+    const concat = spawn('ffmpeg', [
+      '-y',
+      '-f',    'concat',
+      '-safe', '0',
+      '-i',    concatFile,
+      '-c',    'copy',
+      combinedVoice,
+    ], { stdio: 'pipe' })
+    concat.on('close', () => resolve())
+    concat.on('error', () => resolve())
+  })
+
+  if (!fs.existsSync(combinedVoice)) {
+    console.error('Voice concatenation failed, playing files individually')
+    for (const p of validPaths) {
+      await new Promise<void>((resolve) => {
+        const proc = spawn('ffplay', [
+          '-nodisp', '-autoexit', '-volume', '100', p
+        ], {
+          stdio: 'pipe',
+          env: {
+            ...process.env,
+            SDL_AUDIODRIVER: 'directsound',
+            AUDIODEV:        'CABLE Input (VB-Audio Virtual Cable)',
+          }
+        })
+        proc.on('close', () => resolve())
+        proc.on('error', () => resolve())
+      })
+    }
+    return
+  }
+  
+  // Now mix combined voice with looping music and play
+  const mixedOutput   = path.join(MIXED_OUT_DIR, `continuous_${timestamp}.wav`)
+
+  await new Promise<void>((resolve) => {
+  const mix = spawn('ffmpeg', [
+    '-y',
+    '-i',           combinedVoice,
+    '-stream_loop', '-1',
+    '-i',           musicPath,
+    '-filter_complex',
+    '[0:a]volume=1.0[voice];[1:a]volume=0.12[music];[voice][music]amix=inputs=2:duration=first:dropout_transition=2',
+    '-ar', '44100',
+    '-ac', '2',
+    mixedOutput,
+  ], { stdio: 'pipe' })
+
+  mix.stderr?.on('data', (d: Buffer) => {
+    process.stdout.write('.')
+  })
+
+  // ✅ File checks go INSIDE close handler — after ffmpeg finishes
+  mix.on('close', (code) => {
+    console.log(`\nMix complete (code ${code})`)
+
+    if (!fs.existsSync(mixedOutput)) {
+      console.error('Mixed output file not created!')
+      resolve()  // resolve not return — lets the Promise complete
+      return
+    }
+
+    const fileSize = fs.statSync(mixedOutput).size
+    console.log(`Mixed file size: ${fileSize} bytes`)
+
+    if (fileSize < 1000) {
+      console.error('Mixed file too small')
+      resolve()
+      return
+    }
+
+    resolve()
+  })
+
+  mix.on('error', (err) => {
+    console.error('FFmpeg mix error:', err.message)
+    resolve()
+  })
+})
+
+  // Play the final mixed file
+await new Promise<void>((resolve) => {
+  console.log(`[Mixer] Starting playback of ${mixedOutput}`)
+
+  // Calculate expected duration from file size
+  // WAV at 44100Hz stereo 16bit = 176400 bytes/sec
+  const fileSizeBytes   = fs.statSync(mixedOutput).size
+  const expectedSeconds = Math.ceil(fileSizeBytes / 176400)
+  const timeoutMs       = (expectedSeconds + 30) * 1000 // add 30s buffer
+  console.log(`[Mixer] Expected duration: ~${expectedSeconds}s, timeout: ${timeoutMs / 1000}s`)
+
+  const play = spawn('ffplay', [
+    '-nodisp',
+    '-autoexit',
+    '-volume', '100',
+    mixedOutput,
+  ], {
+    stdio: 'ignore',  // ← change from 'pipe' to 'ignore'
+    detached: false,
+    env: {
+      ...process.env,
+      SDL_AUDIODRIVER: 'directsound',
+      AUDIODEV:        'CABLE Input (VB-Audio Virtual Cable)',
+    }
+  })
+
+  // Primary exit — close event
+  play.on('close', (code: number) => {
+    console.log(`[Mixer] ffplay closed code ${code}`)
+    clearTimeout(timeout)
+    cleanup()
+    resolve()
+  })
+
+  play.on('error', (err: Error) => {
+    console.log(`[Mixer] ffplay error: ${err.message}`)
+    clearTimeout(timeout)
+    cleanup()
+    resolve()
+  })
+
+  // Safety timeout based on file duration
+  const timeout = setTimeout(() => {
+    console.log('[Mixer] Duration timeout reached — continuing')
+    try { play.kill() } catch {}
+    cleanup()
+    resolve()
+  }, timeoutMs)
+
+  function cleanup() {
+    try { fs.unlinkSync(concatFile)    } catch {}
+    try { fs.unlinkSync(combinedVoice) } catch {}
+  }
+})
+
+console.log('[playVoiceOverMusic] COMPLETE')
 }
 
 // ── Core Mix Function ─────────────────────────────────────────────

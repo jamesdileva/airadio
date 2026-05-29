@@ -9,14 +9,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('schedule:generate', categories),
   loadSchedule:       () =>
     ipcRenderer.invoke('schedule:load'),
-  fetchData:          (categories: string[]) =>
-    ipcRenderer.invoke('data:fetchForSchedule', categories),
-  fetchFinance:       () =>
-    ipcRenderer.invoke('data:fetchFinance'),
-  loadArticles:       (category: string) =>
-    ipcRenderer.invoke('data:loadArticles', category),
-  loadFinance:        () =>
-    ipcRenderer.invoke('data:loadFinance'),
   generateScript:     (payload: {
     scheduleId: number
     category:   string
@@ -101,4 +93,22 @@ streamStart:      () =>
   analyticsCleanup:     (daysOld?: number) =>
     ipcRenderer.invoke('analytics:cleanup', daysOld),
 
+  orchestratorStart:  (config: any) =>
+    ipcRenderer.invoke('orchestrator:start', config),
+  orchestratorStop:   () =>
+    ipcRenderer.invoke('orchestrator:stop'),
+  orchestratorGetState: () =>
+    ipcRenderer.invoke('orchestrator:getState'),
+  onOrchestratorStatus: (cb: (status: any) => void) => {
+    ipcRenderer.removeAllListeners('orchestrator:status')
+    ipcRenderer.on('orchestrator:status', (_event, status) => cb(status))
+  },
+
+  orchestratorPreflight: () =>
+    ipcRenderer.invoke('orchestrator:preflight'),
+
+  onSceneChanged: (cb: (scene: string) => void) => {
+    ipcRenderer.removeAllListeners('obs:sceneChanged')
+    ipcRenderer.on('obs:sceneChanged', (_event, scene) => cb(scene))
+  },
 })

@@ -174,12 +174,26 @@ export async function connectOBS(config: OBSConfig): Promise<OBSStatus> {
             const active = scenes.find((s: any) => s.id === activeId)
             currentScene = active?.name ?? null
             console.log('Current scene:', currentScene)
-
+            // Push initial scene to renderer
+            try {
+              const { BrowserWindow } = require('electron')
+              BrowserWindow.getAllWindows().forEach((win: any) => {
+                win.webContents.send('obs:sceneChanged', currentScene)
+              })
+            } catch {}
             // Subscribe to scene switches
             subscribe('ScenesService', 'sceneSwitched', (scene: any) => {
               currentScene = scene.name
               console.log('Scene switched to:', currentScene)
-            })
+                // Push to renderer
+                try {
+                  const { BrowserWindow } = require('electron')
+                  BrowserWindow.getAllWindows().forEach((win: any) => {
+                    win.webContents.send('obs:sceneChanged', scene.name)
+                  })
+                } catch {}
+              })
+
           } catch (err) {
             console.warn('Could not get scenes:', err)
           }
@@ -202,6 +216,21 @@ export async function connectOBS(config: OBSConfig): Promise<OBSStatus> {
 
     socket.onmessage = (e: any) => {
       onMessage(e.data)
+      // Parse scene switch events
+      try {
+        const msg = JSON.parse(e.data)
+        if (msg?.result?.resourceId === 'ScenesService.activeSceneChanged') {
+          currentScene = msg?.result?.data?.name ?? currentScene
+          console.log('Scene changed to:', currentScene)
+          // ADD THIS — push to renderer
+          try {
+            const { BrowserWindow } = require('electron')
+            BrowserWindow.getAllWindows().forEach((win: any) => {
+              win.webContents.send('obs:sceneChanged', currentScene)
+            })
+          } catch {}
+        }
+      } catch {}
     }
 
     socket.onclose = () => {
@@ -227,30 +256,60 @@ export async function disconnectOBS(): Promise<void> {
 }
 
 // ── Scene Control ─────────────────────────────────────────────────
+// Cache scenes after first fetch
+let cachedScenes: { id: string; name: string }[] = []
 
 export async function switchScene(sceneName: string): Promise<boolean> {
   try {
-    // Get scene ID from name
-    const scenes = await request('ScenesService', 'getScenes')
-    const scene  = scenes.find((s: any) => s.name === sceneName)
-    if (!scene) {
-      console.error(`Scene not found: ${sceneName}`)
-      return false
+    // Refresh cache if empty
+    if (cachedScenes.length === 0) {
+      const result = await request('ScenesService', 'getSceneNames')
+      // getSceneNames returns simpler format
+      cachedScenes = result.map((s: any) => ({
+        id:   s.id   ?? s,
+        name: s.name ?? s,
+      }))
     }
-    await request('ScenesService', 'makeSceneActive', scene.id)
+
+    const scene = cachedScenes.find((s: any) => s.name === sceneName)
+    if (!scene) {
+      // Try fetching full scene list as fallback
+      const scenes = await request('ScenesService', 'getScenes')
+      cachedScenes = scenes
+      const found  = cachedScenes.find((s: any) => s.name === sceneName)
+      if (!found) {
+        console.error(`Scene not found: ${sceneName}`)
+        return false
+      }
+      await request('ScenesService', 'makeSceneActive', found.id)
+    } else {
+      await request('ScenesService', 'makeSceneActive', scene.id)
+    }
+
     currentScene = sceneName
     console.log('Switched to scene:', sceneName)
+
+    // Push directly to renderer — don't wait for event
+    try {
+      const { BrowserWindow } = require('electron')
+      BrowserWindow.getAllWindows().forEach((win: any) => {
+        win.webContents.send('obs:sceneChanged', sceneName)
+      })
+    } catch {}
+
     return true
   } catch (err: any) {
     console.error('Scene switch failed:', err.message)
+    cachedScenes = [] // clear cache on error
     return false
   }
 }
 
+// Populate cache on connect
 export async function getScenes(): Promise<string[]> {
   try {
-    const scenes = await request('ScenesService', 'getScenes')
-    return scenes.map((s: any) => s.name)
+    cachedScenes = await request('ScenesService', 'getScenes')
+    return cachedScenes.map((s: any) => s.name)
   } catch (err: any) {
     console.error('Get scenes failed:', err.message)
     return []
@@ -302,4 +361,11 @@ export function getStatus(): OBSStatus {
 
 export function isOBSConnected(): boolean {
   return isConnected
+}
+
+export async function updateLowerThird(topic: string): Promise<void> {
+  // Placeholder — lower third automation requires a text source
+  // named "Lower Third" in Streamlabs with GDI+ or similar
+  // Sprint 10 polish item
+  console.log(`[Lower Third] ${topic}`)
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { SchedulePanel }  from './components/SchedulePanel'
 import { DataPanel }      from './components/DataPanel'
-import { ScriptPanel }    from './components/ScriptPanel'
+import { NowPlayingPanel }    from './components/NowPlayingPanel'
 import { OBSPanel }       from './components/OBSPanel'
 import { Category, ScheduleSegment } from '../shared/types'
 import { ChatPanel } from './components/ChatPanel'
@@ -15,6 +15,36 @@ const App: React.FC = () => {
   const [streamError,  setStreamError]  = useState<string>('')
   const [selectedCategories, setSelectedCategories] = useState<Category[]>(['tech', 'news'])
   const [segments,     setSegments]     = useState<ScheduleSegment[]>([])
+  const [orchState,   setOrchState]   = useState<string>('idle')
+  const [orchStatus,  setOrchStatus]  = useState<any>(null)
+  
+  const [currentScene, setCurrentScene] = useState<string>('')
+  const [orchCategories, setOrchCategories] = useState<Category[]>(
+  ['finance', 'tech', 'gaming', 'news']
+)
+
+  const orchConfig = {
+    categories:         orchCategories,  // ← dynamic now
+    chatWindowInterval: 3,
+    maxChatResponses:   2,
+    voiceId:            'af_heart',
+    targetHours:        8,
+  }
+
+  // Effect 1 — orchestrator status listener
+  useEffect(() => {
+    (window as any).electronAPI.onOrchestratorStatus((status: any) => {
+      setOrchState(status.state)
+      setOrchStatus(status)
+    })
+  }, [])
+
+ // Scene changes
+  useEffect(() => {
+    (window as any).electronAPI.onSceneChanged((scene: string) => {
+      setCurrentScene(scene)
+    })
+  }, [])
 
   // Listen for stream status updates pushed from main process
   useEffect(() => {
@@ -34,35 +64,69 @@ const App: React.FC = () => {
     return () => clearInterval(interval)
   }, [streamState])
 
-  const handleStart = async () => {
+
+
+
+  const CATEGORY_OPTIONS: { id: Category; label: string; emoji: string }[] = [
+  { id: 'finance', label: 'Finance', emoji: '📈' },
+  { id: 'tech',    label: 'Tech',    emoji: '💻' },
+  { id: 'gaming',  label: 'Gaming',  emoji: '🎮' },
+  { id: 'news',    label: 'News',    emoji: '📰' },
+  { id: 'niche',   label: 'Niche',   emoji: '🔭' },
+  ]
+
+  const toggleOrchCategory = (cat: Category) => {
+    setOrchCategories(prev =>
+      prev.includes(cat)
+        ? prev.filter(c => c !== cat)
+        : [...prev, cat]
+    )
+  }
+
+  const stateColor: Record<string, string> = {
+    idle:         '#888',
+    initializing: '#f97316',
+    generating:   '#f97316',
+    live:         '#44cc44',
+    segment:      '#22d3ee',
+    chat_window:  '#a78bfa',
+    stopping:     '#f97316',
+    error:        '#ff4444',
+  }
+
+  const stateLabel: Record<string, string> = {
+    idle:         'OFFLINE',
+    initializing: 'INITIALIZING...',
+    generating:   'GENERATING...',
+    live:         'LIVE',
+    segment:      'ON AIR',
+    chat_window:  'CHAT',
+    stopping:     'STOPPING...',
+    error:        'ERROR',
+  }
+
+  const handleAutoStart = async () => {
     setStreamError('')
-    setStreamState('starting')
-    const status = await (window as any).electronAPI.streamStart()
-    setStreamState(status.state)
-    if (status.error) setStreamError(status.error)
+    // Start stream first
+    const streamStatus = await (window as any).electronAPI.streamStart()
+    if (!streamStatus.streaming && streamStatus.state !== 'live' && streamStatus.state !== 'starting') {
+      setStreamError(streamStatus.error || 'Stream failed to start')
+      return
+    }
+    // Then start orchestrator
+    await (window as any).electronAPI.orchestratorStart(orchConfig)
   }
 
-  const handleStop = async () => {
-    setStreamState('stopping')
-    const status = await (window as any).electronAPI.streamStop()
-    setStreamState(status.state)
-    setDuration('00:00:00')
-  }
-
-  const stateColor: Record<StreamState, string> = {
-    idle:     '#888',
-    starting: '#f97316',
-    live:     '#44cc44',
-    stopping: '#f97316',
-    error:    '#ff4444',
-  }
-
-  const stateLabel: Record<StreamState, string> = {
-    idle:     'OFFLINE',
-    starting: 'STARTING...',
-    live:     'LIVE',
-    stopping: 'STOPPING...',
-    error:    'ERROR',
+  const handleAutoStop = async () => {
+    await (window as any).electronAPI.orchestratorStop()
+    await (window as any).electronAPI.streamStop()
+    // Force UI reset after 3 seconds if orchestrator doesn't report idle
+    setTimeout(() => {
+      setOrchState('idle')
+      setOrchStatus(null)
+      setStreamState('idle')
+      setDuration('00:00:00')
+    }, 3000)
   }
 
   return (
@@ -70,40 +134,78 @@ const App: React.FC = () => {
       <header className="app-header">
         <h1>WestWaveGem Radio</h1>
         <div className="header-status">
+          {currentScene && orchState !== 'idle' && (
+            <span className="scene-badge">📺 {currentScene}</span>
+          )}
           {streamState === 'live' && (
             <span className="duration-badge">{duration}</span>
           )}
           <span
             className="status-badge"
-            style={{ color: stateColor[streamState] }}
+            style={{ color: stateColor[orchState as any] ?? '#888' }}
           >
-            ● {stateLabel[streamState]}
+            ● {stateLabel[orchState as any] ?? orchState.toUpperCase()}
           </span>
         </div>
       </header>
 
-      
+      <div className="orch-category-selector">
+        {CATEGORY_OPTIONS.map(cat => (
+          <button
+            key={cat.id}
+            className={`cat-btn ${orchCategories.includes(cat.id) ? 'active' : ''}`}
+            onClick={() => toggleOrchCategory(cat.id)}
+            disabled={orchState !== 'idle'}
+          >
+            {cat.emoji} {cat.label}
+          </button>
+        ))}
+      </div>
 
     <main className="app-main">
       <section className="dashboard-card">
         <h2>Stream Control</h2>
         <div className="stream-control">
-          <div className="stream-buttons">
-            <button
-              className="btn btn-start"
-              onClick={handleStart}
-              disabled={streamState !== 'idle' && streamState !== 'error'}
-            >
-              ▶ Go Live
-            </button>
-            <button
-              className="btn btn-stop"
-              onClick={handleStop}
-              disabled={streamState !== 'live'}
-            >
-              ■ End Stream
-            </button>
+          <div className="auto-controls">
+            <div className="auto-status">
+              <span className={`orch-state orch-${orchState}`}>
+                {orchState === 'idle'         && '○ Idle'}
+                {orchState === 'initializing' && '◌ Initializing...'}
+                {orchState === 'generating'   && '◌ Generating schedule...'}
+                {orchState === 'live'         && '● Broadcasting'}
+                {orchState === 'segment'      && '● On Air'}
+                {orchState === 'chat_window'  && '💬 Chat window'}
+                {orchState === 'stopping'     && '◌ Stopping...'}
+                {orchState === 'error'        && `✕ ${orchStatus?.error ?? 'Error'}`}
+              </span>
+              {orchStatus?.totalSegments > 0 && (
+                <span className="orch-progress">
+                  {orchStatus.segmentIndex}/{orchStatus.totalSegments} segments
+                </span>
+              )}
+              {streamState === 'live' && (
+                <span className="duration-badge">{duration}</span>
+              )}
+            </div>
+
+            <div className="auto-buttons">
+              <button
+                className="btn btn-auto-start"
+                onClick={handleAutoStart}
+                disabled={orchState !== 'idle' && orchState !== 'error'}
+              >
+                ⚡ Start WestWaveGem Radio
+              </button>
+              <button
+                className="btn btn-auto-stop"
+                onClick={handleAutoStop}
+                disabled={orchState === 'idle'}
+              >
+                ■ Stop
+              </button>
+            </div>
           </div>
+
           {streamError && <p className="stream-error">{streamError}</p>}
           <div className="obs-panel-wrapper">
             <OBSPanel />
@@ -111,27 +213,19 @@ const App: React.FC = () => {
         </div>
       </section>
 
+
+
       <section className="dashboard-card">
         <h2>Analytics</h2>
         <AnalyticsPanel />
       </section>
 
       <section className="dashboard-card">
-        <h2>Today's Schedule</h2>
-        <SchedulePanel
-          onCategoriesChange={setSelectedCategories}
-          onScheduleGenerated={setSegments}
+        <h2>Now Playing</h2>
+        <NowPlayingPanel
+          orchState={orchState}
+          orchStatus={orchStatus}
         />
-      </section>
-
-      <section className="dashboard-card">
-        <h2>Live Data</h2>
-        <DataPanel selectedCategories={selectedCategories} />
-      </section>
-
-      <section className="dashboard-card">
-        <h2>Current Segment</h2>
-        <ScriptPanel segments={segments} />
       </section>
 
       <section className="dashboard-card">

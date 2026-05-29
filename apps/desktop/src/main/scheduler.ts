@@ -84,15 +84,20 @@ export function generateSchedule(
     throw new Error('At least one category must be selected')
   }
 
-  const segments: ScheduleSegment[] = []
+  const segments:    ScheduleSegment[] = []
   const usedTopics = new Set<string>()
   let totalSeconds = 0
-  let order = 1
+  let order        = 1
+  let categoryIdx  = 0  // round-robin index
 
   while (totalSeconds < TARGET_DURATION_SECONDS) {
     const remaining = TARGET_DURATION_SECONDS - totalSeconds
-    const duration = Math.min(getRandomDuration(), remaining)
-    const category = getRandomItem(categories)
+    const duration  = Math.min(getRandomDuration(), remaining)
+
+    // Round-robin through categories instead of random
+    const category = categories[categoryIdx % categories.length]
+    categoryIdx++
+
     const topic = getTopicForCategory(category, usedTopics)
 
     segments.push({

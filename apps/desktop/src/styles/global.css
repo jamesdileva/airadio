@@ -48,17 +48,11 @@ body {
 .app-main {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
   gap: 16px;
   padding: 16px;
   flex: 1;
-  overflow-y: auto;
-  min-height: 0;    
-}
-
-/* Chat panel spans full bottom width */
-.app-main section:last-child {
-  grid-column: 1 / -1;
+  overflow: hidden;
 }
 
 .dashboard-card {
@@ -911,3 +905,195 @@ body {
 .btn-stop  { background: #333; color: #ccc; }
 .btn-start:not(:disabled):hover { opacity: 0.85; }
 .btn-stop:not(:disabled):hover  { opacity: 0.85; }
+
+.auto-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+}
+
+.auto-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.orch-state {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.orch-idle         { color: #555; }
+.orch-initializing { color: #f97316; }
+.orch-generating   { color: #f97316; }
+.orch-live         { color: #44cc44; }
+.orch-segment      { color: #22d3ee; }
+.orch-chat_window  { color: #a78bfa; }
+.orch-stopping     { color: #f97316; }
+.orch-error        { color: #ff4444; }
+
+.orch-progress {
+  font-size: 0.75rem;
+  color: #555;
+}
+
+.auto-buttons { display: flex; gap: 8px; }
+
+.btn-auto-start {
+  background: #1a2a1a;
+  color: #44cc44;
+  border: 1px solid #44cc44;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex: 1;
+}
+
+.btn-auto-stop {
+  background: #2a1a1a;
+  color: #ff4444;
+  border: 1px solid #ff4444;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.btn-auto-start:disabled,
+.btn-auto-stop:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.now-playing-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.now-playing-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.now-playing-topic {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-left: 3px solid #22d3ee;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.topic-label {
+  font-size: 0.68rem;
+  color: #22d3ee;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.topic-category {
+  font-size: 0.75rem;
+  color: #ff4444;
+  font-weight: 700;
+}
+
+.topic-title {
+  font-size: 0.92rem;
+  color: #f1f5f9;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.progress-bar-wrap {
+  height: 3px;
+  background: #1a1a1a;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #22d3ee;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+.script-progress {
+  font-size: 0.72rem;
+  color: #f97316;
+  margin-top: 2px;
+}
+
+.schedule-scroll {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+}
+
+.schedule-list-label {
+  font-size: 0.68rem;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.schedule-mini-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+}
+
+.schedule-mini-row {
+  display: grid;
+  grid-template-columns: 24px 60px 1fr 30px;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  align-items: center;
+  background: #111;
+  border-left: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.schedule-mini-row.current {
+  background: #0f1a1a;
+  border-left-color: #22d3ee;
+}
+
+.schedule-mini-row.past {
+  opacity: 0.3;
+}
+
+.scene-badge {
+  font-size: 0.75rem;
+  color: #22d3ee;
+  font-weight: 600;
+}
+
+.orch-category-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.mini-order { color: #444; font-weight: 700; }
+.mini-cat   { color: #ff4444; text-transform: capitalize; font-size: 0.68rem; }
+.mini-topic { color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-dur   { color: #444; text-align: right; }

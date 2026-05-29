@@ -20,27 +20,38 @@ export interface GeneratedScript {
 // ── Ollama API Call ────────────────────────────────────────────────
 
 async function callOllama(prompt: string): Promise<string> {
-  try {
-    const response = await axios.post(
-      OLLAMA_URL,
-      {
-        model:  MODEL,
-        prompt,
-        stream: false,
-        options: {
-        temperature: 0.7,
-        top_p:       0.9,
-        num_predict: 800,             // increased from 300
-        stop:        ['```', 'def ', 'import ', 'class ', 'employeeID', 'gradle'],
+  const MAX_RETRIES = 2
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await axios.post(
+        OLLAMA_URL,
+        {
+          model:  MODEL,
+          prompt,
+          stream: false,
+          options: {
+            temperature: 0.7,
+            top_p:       0.9,
+            num_predict: 800,
+            num_ctx:     2048,  // smaller context = less VRAM
+            stop:        ['```', 'def ', 'import ', 'class '],
+          },
         },
-      },
-      { timeout: 120000 }
-    )
-    return response.data.response?.trim() ?? ''
-  } catch (err: any) {
-    console.error('Ollama call failed:', err.message)
-    throw new Error(`Ollama unavailable: ${err.message}`)
+        { timeout: 120000 }
+      )
+      return response.data.response?.trim() ?? ''
+
+    } catch (err: any) {
+      console.error(`Ollama attempt ${attempt} failed:`, err.message)
+      if (attempt < MAX_RETRIES) {
+        console.log('Retrying in 5 seconds...')
+        await new Promise(resolve => setTimeout(resolve, 5000))
+      }
+    }
   }
+
+  throw new Error('Ollama failed after retries')
 }
 
 // ── Script Builders ────────────────────────────────────────────────
